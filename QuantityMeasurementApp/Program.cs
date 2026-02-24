@@ -2,83 +2,54 @@
 
 namespace QuantityMeasurementApp
 {
-    public class QuantityMeasurementApp
+    // enum for supported length units
+    public enum LengthUnit
     {
-        //feet and inch classes with overridden Equals and GetHashCode methods
-        public class Feet
+        FEET,
+        INCH
+    }
+
+    //entity class to represent a quantity with a value and unit
+    public class QuantityLength
+    {
+        private readonly double value;
+        private readonly LengthUnit unit;
+
+        private const double INCH_TO_FEET = 1.0 / 12.0;
+
+        public QuantityLength(double value, LengthUnit unit)
         {
-            private readonly double value;
-
-            public Feet(double value)
-            {
-                this.value = value;
-            }
-
-            public override bool Equals(object? obj)
-            {
-                if (this == obj)
-                    return true;
-
-                if (obj == null || this.GetType() != obj.GetType())
-                    return false;
-
-                Feet other = (Feet)obj;
-
-                return this.value == other.value;
-            }
-            // GetHashCode is overridden to maintain consistency with Equals
-
-            public override int GetHashCode()
-            {
-                return value.GetHashCode();
-            }
+            this.value = value;
+            this.unit = unit;
         }
 
-        // inch class with overridden Equals and GetHashCode methods
-        public class Inch
+        // Convert everything to FEET (base unit)
+        private double ToFeet()
         {
-            private readonly double value;
-
-            public Inch(double value)
+            return unit switch
             {
-                this.value = value;
-            }
-
-            public override bool Equals(object? obj) // Overriding Equals to compare Inch objects based on their value
-            {
-                if (this == obj)
-                    return true;
-
-                if (obj == null || this.GetType() != obj.GetType())
-                    return false;
-
-                Inch other = (Inch)obj;
-
-                return this.value == other.value;
-            }
-
-            public override int GetHashCode()
-            {
-                return value.GetHashCode();
-            }
+                LengthUnit.FEET => value,
+                LengthUnit.INCH => value * INCH_TO_FEET,
+                _ => throw new ArgumentException("Unsupported Unit")
+            };
         }
 
-     // Methods to compare feet and inch values
-
-        public static bool CompareFeet(double value1, double value2)
+        public override bool Equals(object? obj) // override Equals to compare quantities based on their value in feet
         {
-            Feet f1 = new Feet(value1);
-            Feet f2 = new Feet(value2);
+            if (this == obj)
+                return true;
 
-            return f1.Equals(f2);
+            if (obj == null || this.GetType() != obj.GetType())
+                return false;
+
+            QuantityLength other = (QuantityLength)obj;
+
+            return Math.Abs(this.ToFeet() - other.ToFeet()) < 0.0001;
         }
 
-        public static bool CompareInch(double value1, double value2)
+        public override int GetHashCode()
         {
-            Inch i1 = new Inch(value1);
-            Inch i2 = new Inch(value2);
-
-            return i1.Equals(i2);
+            return ToFeet().GetHashCode();
         }
     }
 
@@ -86,15 +57,19 @@ namespace QuantityMeasurementApp
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Input: 1.0 inch and 1.0 inch");
-            Console.WriteLine("Output: Equal (" +
-                QuantityMeasurementApp.CompareInch(1.0, 1.0) + ")");
+            var q1 = new QuantityLength(1.0, LengthUnit.FEET);
+            var q2 = new QuantityLength(12.0, LengthUnit.INCH);
+
+            Console.WriteLine("Input: Quantity(1.0, FEET) and Quantity(12.0, INCH)");
+            Console.WriteLine("Output: Equal (" + q1.Equals(q2) + ")");
 
             Console.WriteLine();
 
-            Console.WriteLine("Input: 1.0 ft and 1.0 ft");
-            Console.WriteLine("Output: Equal (" +
-                QuantityMeasurementApp.CompareFeet(1.0, 1.0) + ")");
+            var q3 = new QuantityLength(1.0, LengthUnit.INCH);
+            var q4 = new QuantityLength(1.0, LengthUnit.INCH);
+
+            Console.WriteLine("Input: Quantity(1.0, INCH) and Quantity(1.0, INCH)");
+            Console.WriteLine("Output: Equal (" + q3.Equals(q4) + ")");
         }
     }
 }

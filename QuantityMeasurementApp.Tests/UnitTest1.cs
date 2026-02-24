@@ -4,54 +4,76 @@ using QuantityMeasurementApp;
 namespace QuantityMeasurementApp.Tests
 {
     [TestClass]
-    public class QuantityMeasurementAppTest
+    public class QuantityLengthTest
     {
-        // -------- FEET TESTS --------
-
-        [TestMethod]
-        public void GivenSameFeetValue_WhenCompared_ShouldReturnTrue()
+        [TestMethod] // test for equality of two quantities with same unit and value
+        public void GivenFeetToFeet_SameValue_ShouldReturnTrue()
         {
-            Assert.IsTrue(
-                QuantityMeasurementApp.CompareFeet(1.0, 1.0));
+            var q1 = new QuantityLength(1.0, LengthUnit.FEET);
+            var q2 = new QuantityLength(1.0, LengthUnit.FEET);
+
+            Assert.IsTrue(q1.Equals(q2));
         }
 
-        [TestMethod]
-        public void GivenDifferentFeetValue_WhenCompared_ShouldReturnFalse()
+        [TestMethod] // test for equality of two quantities with same unit and value
+        public void GivenInchToInch_SameValue_ShouldReturnTrue()
         {
-            Assert.IsFalse(
-                QuantityMeasurementApp.CompareFeet(1.0, 2.0));
+            var q1 = new QuantityLength(1.0, LengthUnit.INCH);
+            var q2 = new QuantityLength(1.0, LengthUnit.INCH);
+
+            Assert.IsTrue(q1.Equals(q2));
         }
 
-        // -------- INCH TESTS --------
-
-        [TestMethod]
-        public void GivenSameInchValue_WhenCompared_ShouldReturnTrue()
+        [TestMethod] // test for equality of two quantities with different units but equivalent value
+        public void GivenFeetToInch_EquivalentValue_ShouldReturnTrue()
         {
-            Assert.IsTrue(
-                QuantityMeasurementApp.CompareInch(1.0, 1.0));
+            var q1 = new QuantityLength(1.0, LengthUnit.FEET);
+            var q2 = new QuantityLength(12.0, LengthUnit.INCH);
+
+            Assert.IsTrue(q1.Equals(q2));
         }
 
-        [TestMethod]
-        public void GivenDifferentInchValue_WhenCompared_ShouldReturnFalse()
+        [TestMethod] // test for equality of two quantities with different units but equivalent value
+        public void GivenInchToFeet_EquivalentValue_ShouldReturnTrue()
         {
-            Assert.IsFalse(
-                QuantityMeasurementApp.CompareInch(1.0, 2.0));
+            var q1 = new QuantityLength(12.0, LengthUnit.INCH);
+            var q2 = new QuantityLength(1.0, LengthUnit.FEET);
+
+            Assert.IsTrue(q1.Equals(q2));
         }
 
-        [TestMethod]
-        public void GivenInchValue_WhenComparedWithNull_ShouldReturnFalse()
+        [TestMethod] // test for inequality of two quantities with same unit but different values
+        public void GivenFeetDifferentValue_ShouldReturnFalse()
         {
-            var inch = new QuantityMeasurementApp.Inch(1.0);
+            var q1 = new QuantityLength(1.0, LengthUnit.FEET);
+            var q2 = new QuantityLength(2.0, LengthUnit.FEET);
 
-            Assert.IsFalse(inch.Equals(null));
+            Assert.IsFalse(q1.Equals(q2));
         }
 
-        [TestMethod]
-        public void GivenSameReference_WhenCompared_ShouldReturnTrue()
+        [TestMethod] // test for inequality of two quantities with same unit but different values
+        public void GivenInchDifferentValue_ShouldReturnFalse()
         {
-            var inch = new QuantityMeasurementApp.Inch(1.0);
+            var q1 = new QuantityLength(1.0, LengthUnit.INCH);
+            var q2 = new QuantityLength(2.0, LengthUnit.INCH);
 
-            Assert.IsTrue(inch.Equals(inch));
+            Assert.IsFalse(q1.Equals(q2));
+        }
+
+        [TestMethod] // test for inequality of two quantities with different units and non-equivalent values
+        public void GivenNullComparison_ShouldReturnFalse()
+        {
+            var q1 = new QuantityLength(1.0, LengthUnit.FEET);
+
+            Assert.IsFalse(q1.Equals(null));
+        }
+
+        [TestMethod] // test for inequality of two quantities with different types
+        public void GivenSameReference_ShouldReturnTrue()
+        {
+            var q1 = new QuantityLength(1.0, LengthUnit.FEET);
+
+            Assert.IsTrue(q1.Equals(q1));
         }
     }
 }
