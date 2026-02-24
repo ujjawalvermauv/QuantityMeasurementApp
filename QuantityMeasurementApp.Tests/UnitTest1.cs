@@ -6,38 +6,52 @@ namespace QuantityMeasurementApp.Tests
     [TestClass]
     public class QuantityMeasurementAppTest
     {
+        // -------- FEET TESTS --------
+
         [TestMethod]
         public void GivenSameFeetValue_WhenCompared_ShouldReturnTrue()
         {
-            var feet1 = new QuantityMeasurementApp.Feet(1.0);
-            var feet2 = new QuantityMeasurementApp.Feet(1.0);
-
-            Assert.IsTrue(feet1.Equals(feet2));
+            Assert.IsTrue(
+                QuantityMeasurementApp.CompareFeet(1.0, 1.0));
         }
 
         [TestMethod]
         public void GivenDifferentFeetValue_WhenCompared_ShouldReturnFalse()
         {
-            var feet1 = new QuantityMeasurementApp.Feet(1.0);
-            var feet2 = new QuantityMeasurementApp.Feet(2.0);
+            Assert.IsFalse(
+                QuantityMeasurementApp.CompareFeet(1.0, 2.0));
+        }
 
-            Assert.IsFalse(feet1.Equals(feet2));
+        // -------- INCH TESTS --------
+
+        [TestMethod]
+        public void GivenSameInchValue_WhenCompared_ShouldReturnTrue()
+        {
+            Assert.IsTrue(
+                QuantityMeasurementApp.CompareInch(1.0, 1.0));
         }
 
         [TestMethod]
-        public void GivenFeetValue_WhenComparedWithNull_ShouldReturnFalse()
+        public void GivenDifferentInchValue_WhenCompared_ShouldReturnFalse()
         {
-            var feet1 = new QuantityMeasurementApp.Feet(1.0);
+            Assert.IsFalse(
+                QuantityMeasurementApp.CompareInch(1.0, 2.0));
+        }
 
-            Assert.IsFalse(feet1.Equals(null));
+        [TestMethod]
+        public void GivenInchValue_WhenComparedWithNull_ShouldReturnFalse()
+        {
+            var inch = new QuantityMeasurementApp.Inch(1.0);
+
+            Assert.IsFalse(inch.Equals(null));
         }
 
         [TestMethod]
         public void GivenSameReference_WhenCompared_ShouldReturnTrue()
         {
-            var feet1 = new QuantityMeasurementApp.Feet(1.0);
+            var inch = new QuantityMeasurementApp.Inch(1.0);
 
-            Assert.IsTrue(feet1.Equals(feet1));
+            Assert.IsTrue(inch.Equals(inch));
         }
     }
 }
