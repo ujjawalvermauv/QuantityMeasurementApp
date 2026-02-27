@@ -4,9 +4,11 @@ using QuantityMeasurementApp;
 namespace QuantityMeasurementApp.Tests
 {
     [TestClass]
-    public class QuantityLengthTest
+    public class QuantityLengthEqualityTest
     {
-        [TestMethod] // test for equality of two quantities with same unit and value
+        // ---------------- UC1 & UC2 ----------------
+
+        [TestMethod]
         public void GivenFeetToFeet_SameValue_ShouldReturnTrue()
         {
             var q1 = new QuantityLength(1.0, LengthUnit.FEET);
@@ -15,34 +17,7 @@ namespace QuantityMeasurementApp.Tests
             Assert.IsTrue(q1.Equals(q2));
         }
 
-        [TestMethod] // test for equality of two quantities with same unit and value
-        public void GivenInchToInch_SameValue_ShouldReturnTrue()
-        {
-            var q1 = new QuantityLength(1.0, LengthUnit.INCH);
-            var q2 = new QuantityLength(1.0, LengthUnit.INCH);
-
-            Assert.IsTrue(q1.Equals(q2));
-        }
-
-        [TestMethod] // test for equality of two quantities with different units but equivalent value
-        public void GivenFeetToInch_EquivalentValue_ShouldReturnTrue()
-        {
-            var q1 = new QuantityLength(1.0, LengthUnit.FEET);
-            var q2 = new QuantityLength(12.0, LengthUnit.INCH);
-
-            Assert.IsTrue(q1.Equals(q2));
-        }
-
-        [TestMethod] // test for equality of two quantities with different units but equivalent value
-        public void GivenInchToFeet_EquivalentValue_ShouldReturnTrue()
-        {
-            var q1 = new QuantityLength(12.0, LengthUnit.INCH);
-            var q2 = new QuantityLength(1.0, LengthUnit.FEET);
-
-            Assert.IsTrue(q1.Equals(q2));
-        }
-
-        [TestMethod] // test for inequality of two quantities with same unit but different values
+        [TestMethod]
         public void GivenFeetDifferentValue_ShouldReturnFalse()
         {
             var q1 = new QuantityLength(1.0, LengthUnit.FEET);
@@ -51,7 +26,18 @@ namespace QuantityMeasurementApp.Tests
             Assert.IsFalse(q1.Equals(q2));
         }
 
-        [TestMethod] // test for inequality of two quantities with same unit but different values
+        // ---------------- UC2 ----------------
+
+        [TestMethod]
+        public void GivenInchToInch_SameValue_ShouldReturnTrue()
+        {
+            var q1 = new QuantityLength(1.0, LengthUnit.INCH);
+            var q2 = new QuantityLength(1.0, LengthUnit.INCH);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+
+        [TestMethod]
         public void GivenInchDifferentValue_ShouldReturnFalse()
         {
             var q1 = new QuantityLength(1.0, LengthUnit.INCH);
@@ -60,21 +46,28 @@ namespace QuantityMeasurementApp.Tests
             Assert.IsFalse(q1.Equals(q2));
         }
 
-        [TestMethod] // test for inequality of two quantities with different units and non-equivalent values
-        public void GivenNullComparison_ShouldReturnFalse()
+        // ---------------- UC3 Cross Unit ----------------
+
+        [TestMethod]
+        public void GivenFeetToInch_EquivalentValue_ShouldReturnTrue()
         {
             var q1 = new QuantityLength(1.0, LengthUnit.FEET);
+            var q2 = new QuantityLength(12.0, LengthUnit.INCH);
 
-            Assert.IsFalse(q1.Equals(null));
+            Assert.IsTrue(q1.Equals(q2));
         }
 
-        [TestMethod] // test for inequality of two quantities with different types
-        public void GivenSameReference_ShouldReturnTrue()
+        [TestMethod]
+        public void GivenInchToFeet_EquivalentValue_ShouldReturnTrue()
         {
-            var q1 = new QuantityLength(1.0, LengthUnit.FEET);
+            var q1 = new QuantityLength(12.0, LengthUnit.INCH);
+            var q2 = new QuantityLength(1.0, LengthUnit.FEET);
 
-            Assert.IsTrue(q1.Equals(q1));
+            Assert.IsTrue(q1.Equals(q2));
         }
+
+        // ---------------- UC4 Yard Support ----------------
+
         [TestMethod]
         public void GivenYardToFeet_EquivalentValue_ShouldReturnTrue()
         {
@@ -93,6 +86,8 @@ namespace QuantityMeasurementApp.Tests
             Assert.IsTrue(q1.Equals(q2));
         }
 
+        // ---------------- UC4 Centimeter Support ----------------
+
         [TestMethod]
         public void GivenCentimeterToInch_EquivalentValue_ShouldReturnTrue()
         {
@@ -110,6 +105,21 @@ namespace QuantityMeasurementApp.Tests
 
             Assert.IsFalse(q1.Equals(q2));
         }
-        
+
+        // ---------------- Object Behavior ----------------
+
+        [TestMethod]
+        public void GivenNullComparison_ShouldReturnFalse()
+        {
+            var q1 = new QuantityLength(1.0, LengthUnit.FEET);
+            Assert.IsFalse(q1.Equals(null));
+        }
+
+        [TestMethod]
+        public void GivenSameReference_ShouldReturnTrue()
+        {
+            var q1 = new QuantityLength(1.0, LengthUnit.FEET);
+            Assert.IsTrue(q1.Equals(q1));
+        }
     }
 }
