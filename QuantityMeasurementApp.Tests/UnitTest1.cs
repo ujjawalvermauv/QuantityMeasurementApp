@@ -75,5 +75,41 @@ namespace QuantityMeasurementApp.Tests
 
             Assert.IsTrue(q1.Equals(q1));
         }
+        [TestMethod]
+        public void GivenYardToFeet_EquivalentValue_ShouldReturnTrue()
+        {
+            var q1 = new QuantityLength(1.0, LengthUnit.YARD);
+            var q2 = new QuantityLength(3.0, LengthUnit.FEET);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+
+        [TestMethod]
+        public void GivenYardToInch_EquivalentValue_ShouldReturnTrue()
+        {
+            var q1 = new QuantityLength(1.0, LengthUnit.YARD);
+            var q2 = new QuantityLength(36.0, LengthUnit.INCH);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+
+        [TestMethod]
+        public void GivenCentimeterToInch_EquivalentValue_ShouldReturnTrue()
+        {
+            var q1 = new QuantityLength(1.0, LengthUnit.CENTIMETER);
+            var q2 = new QuantityLength(0.393701, LengthUnit.INCH);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+
+        [TestMethod]
+        public void GivenCentimeterToFeet_NonEquivalent_ShouldReturnFalse()
+        {
+            var q1 = new QuantityLength(1.0, LengthUnit.CENTIMETER);
+            var q2 = new QuantityLength(1.0, LengthUnit.FEET);
+
+            Assert.IsFalse(q1.Equals(q2));
+        }
+        
     }
 }

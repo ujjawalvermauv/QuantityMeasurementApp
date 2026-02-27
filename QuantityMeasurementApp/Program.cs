@@ -6,16 +6,20 @@ namespace QuantityMeasurementApp
     public enum LengthUnit
     {
         FEET,
-        INCH
+        INCH,
+        YARD,
+        CENTIMETER
     }
 
-    //entity class to represent a quantity with a value and unit
+    // entity class to represent a quantity with a value and unit
     public class QuantityLength
     {
         private readonly double value;
         private readonly LengthUnit unit;
 
         private const double INCH_TO_FEET = 1.0 / 12.0;
+        private const double YARD_TO_FEET = 3.0;
+        private const double CM_TO_FEET = 0.0328084; // 1 cm = 0.0328084 feet
 
         public QuantityLength(double value, LengthUnit unit)
         {
@@ -30,11 +34,13 @@ namespace QuantityMeasurementApp
             {
                 LengthUnit.FEET => value,
                 LengthUnit.INCH => value * INCH_TO_FEET,
+                LengthUnit.YARD => value * YARD_TO_FEET,
+                LengthUnit.CENTIMETER => value * CM_TO_FEET,
                 _ => throw new ArgumentException("Unsupported Unit")
             };
         }
 
-        public override bool Equals(object? obj) // override Equals to compare quantities based on their value in feet
+        public override bool Equals(object? obj)
         {
             if (this == obj)
                 return true;
@@ -57,18 +63,18 @@ namespace QuantityMeasurementApp
     {
         static void Main(string[] args)
         {
-            var q1 = new QuantityLength(1.0, LengthUnit.FEET);
-            var q2 = new QuantityLength(12.0, LengthUnit.INCH);
+            var q1 = new QuantityLength(1.0, LengthUnit.YARD);
+            var q2 = new QuantityLength(3.0, LengthUnit.FEET);
 
-            Console.WriteLine("Input: Quantity(1.0, FEET) and Quantity(12.0, INCH)");
+            Console.WriteLine("Input: Quantity(1.0, YARD) and Quantity(3.0, FEET)");
             Console.WriteLine("Output: Equal (" + q1.Equals(q2) + ")");
 
             Console.WriteLine();
 
-            var q3 = new QuantityLength(1.0, LengthUnit.INCH);
-            var q4 = new QuantityLength(1.0, LengthUnit.INCH);
+            var q3 = new QuantityLength(1.0, LengthUnit.CENTIMETER);
+            var q4 = new QuantityLength(0.393701, LengthUnit.INCH);
 
-            Console.WriteLine("Input: Quantity(1.0, INCH) and Quantity(1.0, INCH)");
+            Console.WriteLine("Input: Quantity(1.0, CENTIMETER) and Quantity(0.393701, INCH)");
             Console.WriteLine("Output: Equal (" + q3.Equals(q4) + ")");
         }
     }
