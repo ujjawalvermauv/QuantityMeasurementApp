@@ -1,5 +1,108 @@
 # QuantityMeasurementApp
 
+## UC11: Volume Measurement Equality, Conversion, and Addition (Litre, Millilitre, Gallon)
+
+UC11 extends the application with a third independent measurement category: **Volume**.
+The implementation follows the UC10 generic pattern and supports:
+
+- Equality across volume units
+- Unit conversion between volume units
+- Addition with implicit or explicit target unit
+
+Supported units:
+
+- `LITRE` (base unit): `1.0`
+- `MILLILITRE`: `0.001` litre
+- `GALLON`: `3.78541` litre
+
+### Preconditions
+
+- Generic `Quantity<U>` implementation is available and stable.
+- Existing `LengthUnit` and `WeightUnit` behaviors remain unchanged.
+- Volume is treated as a separate non-interoperable category.
+
+### UC11 Implementation Summary
+
+- Added `VolumeUnit` enum and `VolumeUnitExtensions` with:
+  - `GetConversionFactor()`
+  - `ConvertToBaseUnit(double value)`
+  - `ConvertFromBaseUnit(double baseValue)`
+  - `GetUnitName()`
+- Enabled `Quantity<VolumeUnit>` conversion dispatch in the generic `Quantity<U>` conversion helper.
+- Added UC11 examples in `Program.cs` (equality, conversion, addition).
+- Added UC11 tests to `UnitTest1.cs`.
+
+### Main Flow Coverage
+
+#### 1) Equality Comparison
+
+All compared values are normalized to litres, then checked using epsilon tolerance.
+
+Examples:
+
+- `Quantity<VolumeUnit>(1.0, LITRE)` equals `Quantity<VolumeUnit>(1000.0, MILLILITRE)`
+- `Quantity<VolumeUnit>(1.0, GALLON)` equals `Quantity<VolumeUnit>(3.78541, LITRE)`
+
+#### 2) Unit Conversion
+
+`ConvertTo(targetUnit)` converts through base unit (`LITRE`) and returns a new immutable quantity.
+
+Examples:
+
+- `1.0 LITRE -> 1000.0 MILLILITRE`
+- `1.0 GALLON -> 3.78541 LITRE`
+- `1000.0 MILLILITRE -> ~0.264172 GALLON`
+
+#### 3) Addition
+
+Both operands are converted to base unit, summed, then returned in:
+
+- first operand’s unit (implicit target), or
+- caller-specified unit (explicit target)
+
+Examples:
+
+- `1.0 LITRE + 1000.0 MILLILITRE = 2.0 LITRE`
+- `1.0 LITRE + 1.0 GALLON = 4785.41 MILLILITRE` (explicit target)
+
+#### 4) Cross-Category Type Safety
+
+- `Quantity<VolumeUnit>` is not equal to `QuantityLength` or `QuantityWeight`.
+- Generic typing prevents accidental arithmetic between different measurement categories.
+
+### Postconditions
+
+- Volume equality, conversion, and addition are available with immutable behavior.
+- UC1–UC10 features continue to work unchanged.
+- Architecture remains scalable: adding a new category follows the same pattern.
+
+### UC11 Usage Examples
+
+```csharp
+var volume1 = new Quantity<VolumeUnit>(1.0, VolumeUnit.LITRE);
+var volume2 = new Quantity<VolumeUnit>(1000.0, VolumeUnit.MILLILITRE);
+
+var areEqual = volume1.Equals(volume2); // true
+var inGallons = volume1.ConvertTo(VolumeUnit.GALLON); // ~0.264172
+var sum = Quantity<VolumeUnit>.Add(volume1, new Quantity<VolumeUnit>(1.0, VolumeUnit.GALLON), VolumeUnit.LITRE); // ~4.78541
+```
+
+### UC11 Test Case Results
+
+UC11 test categories include:
+
+- `VolumeUnit` conversion factor and base conversion validation
+- Equality tests (same-unit and cross-unit)
+- Conversion tests (all key pairs + round-trip)
+- Addition tests (same-unit, cross-unit, explicit target)
+- Cross-category compatibility checks (Volume vs Length/Weight)
+
+Latest run result:
+
+- **Total tests:** 74
+- **Passed:** 74
+- **Failed:** 0
+
 ## UC10: Generic Quantity<U> Class with IMeasurable Interface
 
 UC10 refactors the application to use a **generic, category-agnostic `Quantity<U>` class**, eliminating code duplication and establishing a foundation for unlimited measurement categories. This use case demonstrates advanced C# generics, reflection-based polymorphism, and interface design for scalability.
