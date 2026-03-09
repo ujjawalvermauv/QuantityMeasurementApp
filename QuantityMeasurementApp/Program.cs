@@ -26,9 +26,16 @@ namespace QuantityMeasurementApp
             if (double.IsNaN(value) || double.IsInfinity(value))
                 throw new ArgumentException("Invalid numeric value");
 
+            if (!Enum.IsDefined(typeof(LengthUnit), unit))
+                throw new ArgumentException("Invalid length unit");
+
             this.value = value;
             this.unit = unit;
         }
+
+        public double Value => value;
+
+        public LengthUnit Unit => unit;
 
         // Convert everything to FEET (base unit)
         private double ToFeet()
@@ -77,6 +84,46 @@ namespace QuantityMeasurementApp
             return new QuantityLength(convertedValue, targetUnit);
         }
 
+        // -------- UC6 ADDITION METHODS --------
+        public QuantityLength Add(QuantityLength other)
+        {
+            return Add(this, other, this.unit);
+        }
+
+        public static QuantityLength Add(QuantityLength first, QuantityLength second)
+        {
+            if (first == null)
+                throw new ArgumentNullException(nameof(first));
+
+            return Add(first, second, first.unit);
+        }
+
+        public static QuantityLength Add(QuantityLength first, QuantityLength second, LengthUnit targetUnit)
+        {
+            if (first == null)
+                throw new ArgumentNullException(nameof(first));
+
+            if (second == null)
+                throw new ArgumentNullException(nameof(second));
+
+            if (!Enum.IsDefined(typeof(LengthUnit), targetUnit))
+                throw new ArgumentException("Invalid target unit");
+
+            double firstInFeet = first.ToFeet();
+            double secondInFeet = second.ToFeet();
+            double sumInFeet = firstInFeet + secondInFeet;
+
+            double sumInTarget = Convert(sumInFeet, LengthUnit.FEET, targetUnit);
+            return new QuantityLength(sumInTarget, targetUnit);
+        }
+
+        public static QuantityLength Add(double firstValue, LengthUnit firstUnit, double secondValue, LengthUnit secondUnit, LengthUnit targetUnit)
+        {
+            var first = new QuantityLength(firstValue, firstUnit);
+            var second = new QuantityLength(secondValue, secondUnit);
+            return Add(first, second, targetUnit);
+        }
+
         public override bool Equals(object? obj)
         {
             if (this == obj)
@@ -97,7 +144,7 @@ namespace QuantityMeasurementApp
 
         public override string ToString()
         {
-            return $"{value} {unit}";
+            return $"Quantity({value}, {unit})";
         }
     }
 
@@ -124,6 +171,13 @@ namespace QuantityMeasurementApp
             Console.WriteLine($"convert(36.0, INCH, YARD) → {QuantityLength.Convert(36.0, LengthUnit.INCH, LengthUnit.YARD)}");
 
             Console.WriteLine($"convert(1.0, CENTIMETER, INCH) → {QuantityLength.Convert(1.0, LengthUnit.CENTIMETER, LengthUnit.INCH)}");
+
+            Console.WriteLine();
+            Console.WriteLine("UC6 Addition Examples:");
+
+            Console.WriteLine($"add(Quantity(1.0, FEET), Quantity(2.0, FEET)) → {QuantityLength.Add(new QuantityLength(1.0, LengthUnit.FEET), new QuantityLength(2.0, LengthUnit.FEET))}");
+            Console.WriteLine($"add(Quantity(1.0, FEET), Quantity(12.0, INCH)) → {QuantityLength.Add(new QuantityLength(1.0, LengthUnit.FEET), new QuantityLength(12.0, LengthUnit.INCH))}");
+            Console.WriteLine($"add(Quantity(12.0, INCH), Quantity(1.0, FEET)) → {QuantityLength.Add(new QuantityLength(12.0, LengthUnit.INCH), new QuantityLength(1.0, LengthUnit.FEET))}");
         }
     }
 }
