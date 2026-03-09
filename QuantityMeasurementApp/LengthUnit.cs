@@ -16,7 +16,7 @@ namespace QuantityMeasurementApp
         private const double YARD_TO_FEET = 3.0;
         private const double CENTIMETER_TO_FEET = 0.0328084;
 
-        public static double GetConversionFactorToFeet(this LengthUnit unit)
+        public static double GetConversionFactor(this LengthUnit unit)
         {
             return unit switch
             {
@@ -33,7 +33,7 @@ namespace QuantityMeasurementApp
             if (double.IsNaN(value) || double.IsInfinity(value))
                 throw new ArgumentException("Invalid numeric value", nameof(value));
 
-            return value * unit.GetConversionFactorToFeet();
+            return value * unit.GetConversionFactor();
         }
 
         public static double ConvertFromBaseUnit(this LengthUnit unit, double baseValue)
@@ -41,7 +41,13 @@ namespace QuantityMeasurementApp
             if (double.IsNaN(baseValue) || double.IsInfinity(baseValue))
                 throw new ArgumentException("Invalid numeric value", nameof(baseValue));
 
-            return baseValue / unit.GetConversionFactorToFeet();
+            return baseValue / unit.GetConversionFactor();
+        }
+
+        public static string GetUnitName(this LengthUnit unit)
+        {
+            return unit.ToString();
         }
     }
 }
+
