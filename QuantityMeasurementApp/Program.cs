@@ -1,24 +1,12 @@
-﻿using System;
+using System;
 
 namespace QuantityMeasurementApp
 {
-    // enum for supported length units
-    public enum LengthUnit
-    {
-        FEET,
-        INCH,
-        YARD,
-        CENTIMETER
-    }
-
     public class QuantityLength
     {
         private readonly double value;
         private readonly LengthUnit unit;
 
-        private const double INCH_TO_FEET = 1.0 / 12.0;
-        private const double YARD_TO_FEET = 3.0;
-        private const double CM_TO_FEET = 0.0328084; // 1 cm = 0.0328084 feet
         private const double EPSILON = 1e-6;
 
         public QuantityLength(double value, LengthUnit unit)
@@ -37,54 +25,32 @@ namespace QuantityMeasurementApp
 
         public LengthUnit Unit => unit;
 
-        // Convert everything to FEET (base unit)
         private double ToFeet()
         {
-            return unit switch
-            {
-                LengthUnit.FEET => value,
-                LengthUnit.INCH => value * INCH_TO_FEET,
-                LengthUnit.YARD => value * YARD_TO_FEET,
-                LengthUnit.CENTIMETER => value * CM_TO_FEET,
-                _ => throw new ArgumentException("Unsupported Unit")
-            };
+            return unit.ConvertToBaseUnit(value);
         }
 
-        // -------- UC5 STATIC CONVERSION METHOD --------
         public static double Convert(double value, LengthUnit source, LengthUnit target)
         {
             if (double.IsNaN(value) || double.IsInfinity(value))
                 throw new ArgumentException("Invalid numeric value");
 
-            // Step 1: Convert source → feet
-            double valueInFeet = source switch
-            {
-                LengthUnit.FEET => value,
-                LengthUnit.INCH => value * INCH_TO_FEET,
-                LengthUnit.YARD => value * YARD_TO_FEET,
-                LengthUnit.CENTIMETER => value * CM_TO_FEET,
-                _ => throw new ArgumentException("Unsupported Source Unit")
-            };
+            if (!Enum.IsDefined(typeof(LengthUnit), source))
+                throw new ArgumentException("Invalid source unit");
 
-            // Step 2: Convert feet → target
-            return target switch
-            {
-                LengthUnit.FEET => valueInFeet,
-                LengthUnit.INCH => valueInFeet / INCH_TO_FEET,
-                LengthUnit.YARD => valueInFeet / YARD_TO_FEET,
-                LengthUnit.CENTIMETER => valueInFeet / CM_TO_FEET,
-                _ => throw new ArgumentException("Unsupported Target Unit")
-            };
+            if (!Enum.IsDefined(typeof(LengthUnit), target))
+                throw new ArgumentException("Invalid target unit");
+
+            double valueInFeet = source.ConvertToBaseUnit(value);
+            return target.ConvertFromBaseUnit(valueInFeet);
         }
 
-        // Instance conversion (immutability)
         public QuantityLength ConvertTo(LengthUnit targetUnit)
         {
             double convertedValue = Convert(this.value, this.unit, targetUnit);
             return new QuantityLength(convertedValue, targetUnit);
         }
 
-        // -------- UC6 ADDITION METHODS --------
         public QuantityLength Add(QuantityLength other)
         {
             return Add(this, other, this.unit);
@@ -113,7 +79,7 @@ namespace QuantityMeasurementApp
             double secondInFeet = second.ToFeet();
             double sumInFeet = firstInFeet + secondInFeet;
 
-            double sumInTarget = Convert(sumInFeet, LengthUnit.FEET, targetUnit);
+            double sumInTarget = targetUnit.ConvertFromBaseUnit(sumInFeet);
             return new QuantityLength(sumInTarget, targetUnit);
         }
 
@@ -152,32 +118,27 @@ namespace QuantityMeasurementApp
     {
         static void Main(string[] args)
         {
-            // UC4 Equality Check
             var q1 = new QuantityLength(1.0, LengthUnit.YARD);
             var q2 = new QuantityLength(3.0, LengthUnit.FEET);
 
             Console.WriteLine("Equality Check:");
-            Console.WriteLine($"1 YARD == 3 FEET → {q1.Equals(q2)}");
+            Console.WriteLine($"1 YARD == 3 FEET ? {q1.Equals(q2)}");
 
             Console.WriteLine();
-
-            // UC5 Conversion Examples
             Console.WriteLine("Conversion Examples:");
-
-            Console.WriteLine($"convert(1.0, FEET, INCH) → {QuantityLength.Convert(1.0, LengthUnit.FEET, LengthUnit.INCH)}");
-
-            Console.WriteLine($"convert(3.0, YARD, FEET) → {QuantityLength.Convert(3.0, LengthUnit.YARD, LengthUnit.FEET)}");
-
-            Console.WriteLine($"convert(36.0, INCH, YARD) → {QuantityLength.Convert(36.0, LengthUnit.INCH, LengthUnit.YARD)}");
-
-            Console.WriteLine($"convert(1.0, CENTIMETER, INCH) → {QuantityLength.Convert(1.0, LengthUnit.CENTIMETER, LengthUnit.INCH)}");
+            Console.WriteLine($"convert(1.0, FEET, INCH) ? {QuantityLength.Convert(1.0, LengthUnit.FEET, LengthUnit.INCH)}");
+            Console.WriteLine($"convert(3.0, YARD, FEET) ? {QuantityLength.Convert(3.0, LengthUnit.YARD, LengthUnit.FEET)}");
+            Console.WriteLine($"convert(36.0, INCH, YARD) ? {QuantityLength.Convert(36.0, LengthUnit.INCH, LengthUnit.YARD)}");
 
             Console.WriteLine();
-            Console.WriteLine("UC6 Addition Examples:");
+            Console.WriteLine("UC8 Unit Conversion Delegation:");
+            Console.WriteLine($"LengthUnit.FEET.ConvertToBaseUnit(12.0) ? {LengthUnit.FEET.ConvertToBaseUnit(12.0)}");
+            Console.WriteLine($"LengthUnit.INCH.ConvertToBaseUnit(12.0) ? {LengthUnit.INCH.ConvertToBaseUnit(12.0)}");
 
-            Console.WriteLine($"add(Quantity(1.0, FEET), Quantity(2.0, FEET)) → {QuantityLength.Add(new QuantityLength(1.0, LengthUnit.FEET), new QuantityLength(2.0, LengthUnit.FEET))}");
-            Console.WriteLine($"add(Quantity(1.0, FEET), Quantity(12.0, INCH)) → {QuantityLength.Add(new QuantityLength(1.0, LengthUnit.FEET), new QuantityLength(12.0, LengthUnit.INCH))}");
-            Console.WriteLine($"add(Quantity(12.0, INCH), Quantity(1.0, FEET)) → {QuantityLength.Add(new QuantityLength(12.0, LengthUnit.INCH), new QuantityLength(1.0, LengthUnit.FEET))}");
+            Console.WriteLine();
+            Console.WriteLine("Addition Examples:");
+            Console.WriteLine($"add(Quantity(1.0, FEET), Quantity(12.0, INCH), FEET) ? {QuantityLength.Add(new QuantityLength(1.0, LengthUnit.FEET), new QuantityLength(12.0, LengthUnit.INCH), LengthUnit.FEET)}");
+            Console.WriteLine($"add(Quantity(1.0, FEET), Quantity(12.0, INCH), YARD) ? {QuantityLength.Add(new QuantityLength(1.0, LengthUnit.FEET), new QuantityLength(12.0, LengthUnit.INCH), LengthUnit.YARD)}");
         }
     }
 }

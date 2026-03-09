@@ -125,6 +125,54 @@ namespace QuantityMeasurementApp.Tests
     }
 
     [TestClass]
+    public class LengthUnitStandaloneConversionTest
+    {
+        private const double EPSILON = 1e-6;
+
+        [TestMethod]
+        public void testConvertToBaseUnit_FeetToFeet()
+        {
+            Assert.AreEqual(5.0, LengthUnit.FEET.ConvertToBaseUnit(5.0), EPSILON);
+        }
+
+        [TestMethod]
+        public void testConvertToBaseUnit_InchesToFeet()
+        {
+            Assert.AreEqual(1.0, LengthUnit.INCH.ConvertToBaseUnit(12.0), EPSILON);
+        }
+
+        [TestMethod]
+        public void testConvertToBaseUnit_YardsToFeet()
+        {
+            Assert.AreEqual(3.0, LengthUnit.YARD.ConvertToBaseUnit(1.0), EPSILON);
+        }
+
+        [TestMethod]
+        public void testConvertToBaseUnit_CentimetersToFeet()
+        {
+            Assert.AreEqual(1.0, LengthUnit.CENTIMETER.ConvertToBaseUnit(30.48), 1e-4);
+        }
+
+        [TestMethod]
+        public void testConvertFromBaseUnit_FeetToInches()
+        {
+            Assert.AreEqual(12.0, LengthUnit.INCH.ConvertFromBaseUnit(1.0), EPSILON);
+        }
+
+        [TestMethod]
+        public void testConvertFromBaseUnit_FeetToYards()
+        {
+            Assert.AreEqual(1.0, LengthUnit.YARD.ConvertFromBaseUnit(3.0), EPSILON);
+        }
+
+        [TestMethod]
+        public void testConvertFromBaseUnit_FeetToCentimeters()
+        {
+            Assert.AreEqual(30.48, LengthUnit.CENTIMETER.ConvertFromBaseUnit(1.0), 1e-3);
+        }
+    }
+
+    [TestClass]
     public class QuantityLengthAdditionTest
     {
         private const double EPSILON = 1e-6;
