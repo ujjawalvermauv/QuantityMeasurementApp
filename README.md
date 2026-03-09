@@ -1,75 +1,93 @@
 # QuantityMeasurementApp
 
-## UC7: Addition with Target Unit Specification
+## UC12: Subtraction and Division Operations on Quantity Measurements
 
-UC7 extends UC6 by allowing the caller to explicitly choose the result unit for addition.
-Instead of always returning the sum in the first operand's unit, the API supports:
+This use case introduces subtraction and division into the generic quantity model while preserving previous functionality (equality, conversion, and addition).
 
-- implicit target unit (UC6 behavior)
-- explicit target unit (UC7 behavior)
+The project now uses a generic immutable type:
 
-All operations are immutable and return a new `QuantityLength` instance.
+- `Quantity<U>` where `U : struct, Enum`
 
-## Supported Units
+Supported categories:
 
-- `FEET`
-- `INCH`
-- `YARD`
-- `CENTIMETER`
+- `LengthUnit` (`FEET`, `INCH`, `YARD`, `CENTIMETER`)
+- `WeightUnit` (`KILOGRAM`, `GRAM`)
+- `VolumeUnit` (`LITRE`, `MILLILITRE`)
 
-All conversions are normalized through the base unit `FEET`.
+Conversions are normalized via a category-specific base unit:
 
-## Addition API
+- Length base: `FEET`
+- Weight base: `KILOGRAM`
+- Volume base: `LITRE`
 
-- `QuantityLength Add(QuantityLength other)`
-- `static QuantityLength Add(QuantityLength first, QuantityLength second)`
-- `static QuantityLength Add(QuantityLength first, QuantityLength second, LengthUnit targetUnit)`
-- `static QuantityLength Add(double firstValue, LengthUnit firstUnit, double secondValue, LengthUnit secondUnit, LengthUnit targetUnit)`
+## UC12 APIs
 
-## UC7 Main Flow
+- `Quantity<U> Add(Quantity<U> other)`
+- `Quantity<U> Add(Quantity<U> other, U targetUnit)`
+- `Quantity<U> Subtract(Quantity<U> other)`
+- `Quantity<U> Subtract(Quantity<U> other, U targetUnit)`
+- `double Divide(Quantity<U> other)`
+- `Quantity<U> ConvertTo(U targetUnit)`
 
-1. Validate both operands and target unit.
-2. Convert both operands to base unit (`FEET`).
-3. Add normalized values.
-4. Convert sum to explicitly specified `targetUnit`.
-5. Return new immutable `QuantityLength`.
+## Arithmetic Behavior
+
+Subtraction:
+
+- Supports same-unit and cross-unit arithmetic within a category.
+- Implicit result unit is the first operand unit.
+- Explicit target unit can be specified.
+- Result is rounded to 2 decimal places.
+- Returns a new immutable `Quantity<U>`.
+
+Division:
+
+- Supports same-unit and cross-unit division within a category.
+- Returns a dimensionless `double` ratio.
+- Does not round the ratio result.
+- Throws `ArithmeticException` when divisor is zero.
 
 ## Validation Rules
 
-- Operand values must be finite (`NaN`/`Infinity` are rejected).
-- Operands must be non-null.
-- Target unit must be a valid `LengthUnit`.
-- Invalid input throws `ArgumentException` or `ArgumentNullException`.
+- Values must be finite (`NaN` and `Infinity` are rejected).
+- Operand quantities must be non-null.
+- Target units must be valid enum values.
+- Cross-category arithmetic is prevented by generic type safety (`Quantity<LengthUnit>` cannot operate with `Quantity<WeightUnit>`).
 
-## UC7 Example Outputs
+## Example Operations
 
-- `add(Quantity(1.0, FEET), Quantity(12.0, INCH), FEET)` -> `Quantity(2.0, FEET)`
-- `add(Quantity(1.0, FEET), Quantity(12.0, INCH), INCH)` -> `Quantity(24.0, INCH)`
-- `add(Quantity(1.0, FEET), Quantity(12.0, INCH), YARD)` -> `Quantity(~0.667, YARD)`
-- `add(Quantity(1.0, YARD), Quantity(3.0, FEET), YARD)` -> `Quantity(2.0, YARD)`
-- `add(Quantity(36.0, INCH), Quantity(1.0, YARD), FEET)` -> `Quantity(6.0, FEET)`
-- `add(Quantity(2.54, CENTIMETER), Quantity(1.0, INCH), CENTIMETER)` -> `Quantity(~5.08, CENTIMETER)`
-- `add(Quantity(5.0, FEET), Quantity(0.0, INCH), YARD)` -> `Quantity(~1.667, YARD)`
-- `add(Quantity(5.0, FEET), Quantity(-2.0, FEET), INCH)` -> `Quantity(36.0, INCH)`
+Subtraction:
 
-## Key UC7 Concepts
+- `new Quantity<LengthUnit>(10.0, LengthUnit.FEET).Subtract(new Quantity<LengthUnit>(6.0, LengthUnit.INCH))`
+  returns `Quantity(9.5, FEET)`
+- `new Quantity<LengthUnit>(10.0, LengthUnit.FEET).Subtract(new Quantity<LengthUnit>(6.0, LengthUnit.INCH), LengthUnit.INCH)`
+  returns `Quantity(114, INCH)`
+- `new Quantity<WeightUnit>(10.0, WeightUnit.KILOGRAM).Subtract(new Quantity<WeightUnit>(5000.0, WeightUnit.GRAM))`
+  returns `Quantity(5, KILOGRAM)`
 
-- Method overloading for implicit and explicit target unit behavior.
-- Reuse of conversion infrastructure from UC5/UC6.
-- DRY design through common base-unit normalization.
-- Commutativity preserved with fixed target unit.
-- Precision handled via epsilon-based assertions in tests.
+Division:
 
-## UC7 Test Coverage
+- `new Quantity<LengthUnit>(24.0, LengthUnit.INCH).Divide(new Quantity<LengthUnit>(2.0, LengthUnit.FEET))`
+  returns `1.0`
+- `new Quantity<WeightUnit>(2000.0, WeightUnit.GRAM).Divide(new Quantity<WeightUnit>(1.0, WeightUnit.KILOGRAM))`
+  returns `2.0`
+- `new Quantity<VolumeUnit>(5.0, VolumeUnit.LITRE).Divide(new Quantity<VolumeUnit>(10.0, VolumeUnit.LITRE))`
+  returns `0.5`
 
-- Explicit target = first operand unit
-- Explicit target = second operand unit
-- Explicit target different from both operands
-- Commutativity with explicit target unit
-- Zero and negative values with target conversion
-- Large-to-small and small-to-large scale conversion
-- Null/invalid input validation
+## Running the App
 
-Run tests:
+```bash
+dotnet run --project QuantityMeasurementApp
+```
 
-`dotnet test`
+## Running Tests
+
+```bash
+dotnet test
+```
+
+## SOLID / Object Calisthenics Notes
+
+- `Quantity<U>` follows SRP for quantity state and arithmetic behavior.
+- `UnitConverter` centralizes conversion logic to avoid duplication.
+- Immutability is preserved in all operations.
+- Current conversion dispatch uses type checks in `UnitConverter`; for future extensibility this can be refactored toward a strategy/provider model per unit category.

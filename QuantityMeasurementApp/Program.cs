@@ -2,7 +2,10 @@
 
 namespace QuantityMeasurementApp
 {
-    // enum for supported length units
+    public interface IMeasurable
+    {
+    }
+
     public enum LengthUnit
     {
         FEET,
@@ -11,173 +14,289 @@ namespace QuantityMeasurementApp
         CENTIMETER
     }
 
-    public class QuantityLength
+    public enum WeightUnit
     {
-        private readonly double value;
-        private readonly LengthUnit unit;
+        KILOGRAM,
+        GRAM
+    }
 
-        private const double INCH_TO_FEET = 1.0 / 12.0;
-        private const double YARD_TO_FEET = 3.0;
-        private const double CM_TO_FEET = 0.0328084; // 1 cm = 0.0328084 feet
-        private const double EPSILON = 1e-6;
+    public enum VolumeUnit
+    {
+        LITRE,
+        MILLILITRE
+    }
 
-        public QuantityLength(double value, LengthUnit unit)
+    public sealed class Quantity<U> where U : struct, Enum
+    {
+        private const double EPSILON = 1e-9;
+
+        public Quantity(double value, U unit)
         {
-            if (double.IsNaN(value) || double.IsInfinity(value))
-                throw new ArgumentException("Invalid numeric value");
+            ValidateFinite(value, nameof(value));
+            ValidateEnumUnit(unit, nameof(unit));
 
-            if (!Enum.IsDefined(typeof(LengthUnit), unit))
-                throw new ArgumentException("Invalid length unit");
-
-            this.value = value;
-            this.unit = unit;
+            Value = value;
+            Unit = unit;
         }
 
-        public double Value => value;
+        public double Value { get; }
 
-        public LengthUnit Unit => unit;
+        public U Unit { get; }
 
-        // Convert everything to FEET (base unit)
-        private double ToFeet()
+        public Quantity<U> ConvertTo(U targetUnit)
         {
-            return unit switch
+            ValidateEnumUnit(targetUnit, nameof(targetUnit));
+
+            double baseValue = UnitConverter.ToBase(Value, Unit);
+            double converted = UnitConverter.FromBase(baseValue, targetUnit);
+
+            return new Quantity<U>(RoundToTwo(converted), targetUnit);
+        }
+
+        public Quantity<U> Add(Quantity<U> other)
+        {
+            return Add(other, Unit);
+        }
+
+        public Quantity<U> Add(Quantity<U> other, U targetUnit)
+        {
+            ValidateOperand(other);
+            ValidateEnumUnit(targetUnit, nameof(targetUnit));
+
+            double resultInBase = UnitConverter.ToBase(Value, Unit) + UnitConverter.ToBase(other.Value, other.Unit);
+            double resultInTarget = UnitConverter.FromBase(resultInBase, targetUnit);
+
+            return new Quantity<U>(RoundToTwo(resultInTarget), targetUnit);
+        }
+
+        public Quantity<U> Subtract(Quantity<U> other)
+        {
+            return Subtract(other, Unit);
+        }
+
+        public Quantity<U> Subtract(Quantity<U> other, U targetUnit)
+        {
+            ValidateOperand(other);
+            ValidateEnumUnit(targetUnit, nameof(targetUnit));
+
+            double resultInBase = UnitConverter.ToBase(Value, Unit) - UnitConverter.ToBase(other.Value, other.Unit);
+            double resultInTarget = UnitConverter.FromBase(resultInBase, targetUnit);
+
+            return new Quantity<U>(RoundToTwo(resultInTarget), targetUnit);
+        }
+
+        public double Divide(Quantity<U> other)
+        {
+            ValidateOperand(other);
+
+            double dividend = UnitConverter.ToBase(Value, Unit);
+            double divisor = UnitConverter.ToBase(other.Value, other.Unit);
+
+            if (Math.Abs(divisor) < EPSILON)
             {
-                LengthUnit.FEET => value,
-                LengthUnit.INCH => value * INCH_TO_FEET,
-                LengthUnit.YARD => value * YARD_TO_FEET,
-                LengthUnit.CENTIMETER => value * CM_TO_FEET,
-                _ => throw new ArgumentException("Unsupported Unit")
-            };
-        }
+                throw new ArithmeticException("Cannot divide by zero quantity.");
+            }
 
-        // -------- UC5 STATIC CONVERSION METHOD --------
-        public static double Convert(double value, LengthUnit source, LengthUnit target)
-        {
-            if (double.IsNaN(value) || double.IsInfinity(value))
-                throw new ArgumentException("Invalid numeric value");
-
-            // Step 1: Convert source → feet
-            double valueInFeet = source switch
-            {
-                LengthUnit.FEET => value,
-                LengthUnit.INCH => value * INCH_TO_FEET,
-                LengthUnit.YARD => value * YARD_TO_FEET,
-                LengthUnit.CENTIMETER => value * CM_TO_FEET,
-                _ => throw new ArgumentException("Unsupported Source Unit")
-            };
-
-            // Step 2: Convert feet → target
-            return target switch
-            {
-                LengthUnit.FEET => valueInFeet,
-                LengthUnit.INCH => valueInFeet / INCH_TO_FEET,
-                LengthUnit.YARD => valueInFeet / YARD_TO_FEET,
-                LengthUnit.CENTIMETER => valueInFeet / CM_TO_FEET,
-                _ => throw new ArgumentException("Unsupported Target Unit")
-            };
-        }
-
-        // Instance conversion (immutability)
-        public QuantityLength ConvertTo(LengthUnit targetUnit)
-        {
-            double convertedValue = Convert(this.value, this.unit, targetUnit);
-            return new QuantityLength(convertedValue, targetUnit);
-        }
-
-        // -------- UC6 ADDITION METHODS --------
-        public QuantityLength Add(QuantityLength other)
-        {
-            return Add(this, other, this.unit);
-        }
-
-        public static QuantityLength Add(QuantityLength first, QuantityLength second)
-        {
-            if (first == null)
-                throw new ArgumentNullException(nameof(first));
-
-            return Add(first, second, first.unit);
-        }
-
-        public static QuantityLength Add(QuantityLength first, QuantityLength second, LengthUnit targetUnit)
-        {
-            if (first == null)
-                throw new ArgumentNullException(nameof(first));
-
-            if (second == null)
-                throw new ArgumentNullException(nameof(second));
-
-            if (!Enum.IsDefined(typeof(LengthUnit), targetUnit))
-                throw new ArgumentException("Invalid target unit");
-
-            double firstInFeet = first.ToFeet();
-            double secondInFeet = second.ToFeet();
-            double sumInFeet = firstInFeet + secondInFeet;
-
-            double sumInTarget = Convert(sumInFeet, LengthUnit.FEET, targetUnit);
-            return new QuantityLength(sumInTarget, targetUnit);
-        }
-
-        public static QuantityLength Add(double firstValue, LengthUnit firstUnit, double secondValue, LengthUnit secondUnit, LengthUnit targetUnit)
-        {
-            var first = new QuantityLength(firstValue, firstUnit);
-            var second = new QuantityLength(secondValue, secondUnit);
-            return Add(first, second, targetUnit);
+            return dividend / divisor;
         }
 
         public override bool Equals(object? obj)
         {
-            if (this == obj)
+            if (ReferenceEquals(this, obj))
+            {
                 return true;
+            }
 
-            if (obj == null || this.GetType() != obj.GetType())
+            if (obj is not Quantity<U> other)
+            {
                 return false;
+            }
 
-            QuantityLength other = (QuantityLength)obj;
+            double thisInBase = UnitConverter.ToBase(Value, Unit);
+            double otherInBase = UnitConverter.ToBase(other.Value, other.Unit);
 
-            return Math.Abs(this.ToFeet() - other.ToFeet()) < EPSILON;
+            return Math.Abs(thisInBase - otherInBase) < EPSILON;
         }
 
         public override int GetHashCode()
         {
-            return ToFeet().GetHashCode();
+            return UnitConverter.ToBase(Value, Unit).GetHashCode();
         }
 
         public override string ToString()
         {
-            return $"Quantity({value}, {unit})";
+            return $"Quantity({RoundToTwo(Value)}, {Unit})";
+        }
+
+        private static void ValidateFinite(double value, string paramName)
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value))
+            {
+                throw new ArgumentException("Value must be a finite number.", paramName);
+            }
+        }
+
+        private static void ValidateEnumUnit(U unit, string paramName)
+        {
+            if (!Enum.IsDefined(typeof(U), unit))
+            {
+                throw new ArgumentException("Invalid unit value.", paramName);
+            }
+        }
+
+        private static void ValidateOperand(Quantity<U>? other)
+        {
+            if (other is null)
+            {
+                throw new ArgumentNullException(nameof(other));
+            }
+
+            ValidateFinite(other.Value, nameof(other.Value));
+            ValidateEnumUnit(other.Unit, nameof(other.Unit));
+        }
+
+        private static double RoundToTwo(double value)
+        {
+            return Math.Round(value, 2, MidpointRounding.AwayFromZero);
         }
     }
 
-    class Program
+    public static class UnitConverter
     {
-        static void Main(string[] args)
+        private const double INCH_TO_FEET = 1.0 / 12.0;
+        private const double YARD_TO_FEET = 3.0;
+        private const double CM_TO_FEET = 0.0328084;
+        private const double GRAM_TO_KILOGRAM = 0.001;
+        private const double MILLILITRE_TO_LITRE = 0.001;
+
+        public static double ToBase<U>(double value, U unit) where U : struct, Enum
         {
-            // UC4 Equality Check
-            var q1 = new QuantityLength(1.0, LengthUnit.YARD);
-            var q2 = new QuantityLength(3.0, LengthUnit.FEET);
+            if (typeof(U) == typeof(LengthUnit))
+            {
+                var lengthUnit = (LengthUnit)(object)unit;
+                return lengthUnit switch
+                {
+                    LengthUnit.FEET => value,
+                    LengthUnit.INCH => value * INCH_TO_FEET,
+                    LengthUnit.YARD => value * YARD_TO_FEET,
+                    LengthUnit.CENTIMETER => value * CM_TO_FEET,
+                    _ => throw new ArgumentException("Unsupported length unit.")
+                };
+            }
 
-            Console.WriteLine("Equality Check:");
-            Console.WriteLine($"1 YARD == 3 FEET → {q1.Equals(q2)}");
+            if (typeof(U) == typeof(WeightUnit))
+            {
+                var weightUnit = (WeightUnit)(object)unit;
+                return weightUnit switch
+                {
+                    WeightUnit.KILOGRAM => value,
+                    WeightUnit.GRAM => value * GRAM_TO_KILOGRAM,
+                    _ => throw new ArgumentException("Unsupported weight unit.")
+                };
+            }
 
+            if (typeof(U) == typeof(VolumeUnit))
+            {
+                var volumeUnit = (VolumeUnit)(object)unit;
+                return volumeUnit switch
+                {
+                    VolumeUnit.LITRE => value,
+                    VolumeUnit.MILLILITRE => value * MILLILITRE_TO_LITRE,
+                    _ => throw new ArgumentException("Unsupported volume unit.")
+                };
+            }
+
+            throw new ArgumentException($"Unsupported unit category: {typeof(U).Name}");
+        }
+
+        public static double FromBase<U>(double value, U unit) where U : struct, Enum
+        {
+            if (typeof(U) == typeof(LengthUnit))
+            {
+                var lengthUnit = (LengthUnit)(object)unit;
+                return lengthUnit switch
+                {
+                    LengthUnit.FEET => value,
+                    LengthUnit.INCH => value / INCH_TO_FEET,
+                    LengthUnit.YARD => value / YARD_TO_FEET,
+                    LengthUnit.CENTIMETER => value / CM_TO_FEET,
+                    _ => throw new ArgumentException("Unsupported length unit.")
+                };
+            }
+
+            if (typeof(U) == typeof(WeightUnit))
+            {
+                var weightUnit = (WeightUnit)(object)unit;
+                return weightUnit switch
+                {
+                    WeightUnit.KILOGRAM => value,
+                    WeightUnit.GRAM => value / GRAM_TO_KILOGRAM,
+                    _ => throw new ArgumentException("Unsupported weight unit.")
+                };
+            }
+
+            if (typeof(U) == typeof(VolumeUnit))
+            {
+                var volumeUnit = (VolumeUnit)(object)unit;
+                return volumeUnit switch
+                {
+                    VolumeUnit.LITRE => value,
+                    VolumeUnit.MILLILITRE => value / MILLILITRE_TO_LITRE,
+                    _ => throw new ArgumentException("Unsupported volume unit.")
+                };
+            }
+
+            throw new ArgumentException($"Unsupported unit category: {typeof(U).Name}");
+        }
+    }
+
+    internal static class Program
+    {
+        private static void Main()
+        {
+            DemonstrateSubtraction();
             Console.WriteLine();
+            DemonstrateDivision();
+        }
 
-            // UC5 Conversion Examples
-            Console.WriteLine("Conversion Examples:");
+        private static void DemonstrateSubtraction()
+        {
+            Console.WriteLine("UC12 Subtraction Examples:");
 
-            Console.WriteLine($"convert(1.0, FEET, INCH) → {QuantityLength.Convert(1.0, LengthUnit.FEET, LengthUnit.INCH)}");
+            var lengthImplicit = new Quantity<LengthUnit>(10.0, LengthUnit.FEET)
+                .Subtract(new Quantity<LengthUnit>(6.0, LengthUnit.INCH));
 
-            Console.WriteLine($"convert(3.0, YARD, FEET) → {QuantityLength.Convert(3.0, LengthUnit.YARD, LengthUnit.FEET)}");
+            var lengthExplicit = new Quantity<LengthUnit>(10.0, LengthUnit.FEET)
+                .Subtract(new Quantity<LengthUnit>(6.0, LengthUnit.INCH), LengthUnit.INCH);
 
-            Console.WriteLine($"convert(36.0, INCH, YARD) → {QuantityLength.Convert(36.0, LengthUnit.INCH, LengthUnit.YARD)}");
+            var weightImplicit = new Quantity<WeightUnit>(10.0, WeightUnit.KILOGRAM)
+                .Subtract(new Quantity<WeightUnit>(5000.0, WeightUnit.GRAM));
 
-            Console.WriteLine($"convert(1.0, CENTIMETER, INCH) → {QuantityLength.Convert(1.0, LengthUnit.CENTIMETER, LengthUnit.INCH)}");
+            var volumeExplicit = new Quantity<VolumeUnit>(5.0, VolumeUnit.LITRE)
+                .Subtract(new Quantity<VolumeUnit>(2.0, VolumeUnit.LITRE), VolumeUnit.MILLILITRE);
 
-            Console.WriteLine();
-            Console.WriteLine("UC6 Addition Examples:");
+            Console.WriteLine($"10 FEET - 6 INCHES = {lengthImplicit}");
+            Console.WriteLine($"10 FEET - 6 INCHES (in INCH) = {lengthExplicit}");
+            Console.WriteLine($"10 KILOGRAM - 5000 GRAM = {weightImplicit}");
+            Console.WriteLine($"5 LITRE - 2 LITRE (in MILLILITRE) = {volumeExplicit}");
+        }
 
-            Console.WriteLine($"add(Quantity(1.0, FEET), Quantity(2.0, FEET)) → {QuantityLength.Add(new QuantityLength(1.0, LengthUnit.FEET), new QuantityLength(2.0, LengthUnit.FEET))}");
-            Console.WriteLine($"add(Quantity(1.0, FEET), Quantity(12.0, INCH)) → {QuantityLength.Add(new QuantityLength(1.0, LengthUnit.FEET), new QuantityLength(12.0, LengthUnit.INCH))}");
-            Console.WriteLine($"add(Quantity(12.0, INCH), Quantity(1.0, FEET)) → {QuantityLength.Add(new QuantityLength(12.0, LengthUnit.INCH), new QuantityLength(1.0, LengthUnit.FEET))}");
+        private static void DemonstrateDivision()
+        {
+            Console.WriteLine("UC12 Division Examples:");
+
+            double lengthRatio = new Quantity<LengthUnit>(24.0, LengthUnit.INCH)
+                .Divide(new Quantity<LengthUnit>(2.0, LengthUnit.FEET));
+
+            double weightRatio = new Quantity<WeightUnit>(2000.0, WeightUnit.GRAM)
+                .Divide(new Quantity<WeightUnit>(1.0, WeightUnit.KILOGRAM));
+
+            double volumeRatio = new Quantity<VolumeUnit>(5.0, VolumeUnit.LITRE)
+                .Divide(new Quantity<VolumeUnit>(10.0, VolumeUnit.LITRE));
+
+            Console.WriteLine($"24 INCH / 2 FEET = {lengthRatio}");
+            Console.WriteLine($"2000 GRAM / 1 KILOGRAM = {weightRatio}");
+            Console.WriteLine($"5 LITRE / 10 LITRE = {volumeRatio}");
         }
     }
 }
