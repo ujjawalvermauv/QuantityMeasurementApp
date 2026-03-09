@@ -1,14 +1,16 @@
 # QuantityMeasurementApp
 
-## UC7: Addition with Target Unit Specification
+## UC8: Refactoring Unit Enum to Standalone with Conversion Responsibility
 
-UC7 extends UC6 by allowing the caller to explicitly choose the result unit for addition.
-Instead of always returning the sum in the first operand's unit, the API supports:
+UC8 refactors the length model by extracting `LengthUnit` into a standalone top-level enum and moving conversion responsibilities into the enum itself.
 
-- implicit target unit (UC6 behavior)
-- explicit target unit (UC7 behavior)
+This removes conversion logic duplication inside `QuantityLength`, improves cohesion, reduces coupling, and keeps all behavior from UC1–UC7 unchanged.
 
-All operations are immutable and return a new `QuantityLength` instance.
+## UC8 Design Goal
+
+- `LengthUnit` handles unit-to-base and base-to-unit conversions.
+- `QuantityLength` focuses on validation, equality, conversion orchestration, and arithmetic.
+- Public API behavior remains backward compatible with UC1–UC7 client usage.
 
 ## Supported Units
 
@@ -17,58 +19,75 @@ All operations are immutable and return a new `QuantityLength` instance.
 - `YARD`
 - `CENTIMETER`
 
-All conversions are normalized through the base unit `FEET`.
+Base unit for length remains `FEET`.
 
-## Addition API
+## Responsibilities After Refactor
 
-- `QuantityLength Add(QuantityLength other)`
-- `static QuantityLength Add(QuantityLength first, QuantityLength second)`
-- `static QuantityLength Add(QuantityLength first, QuantityLength second, LengthUnit targetUnit)`
-- `static QuantityLength Add(double firstValue, LengthUnit firstUnit, double secondValue, LengthUnit secondUnit, LengthUnit targetUnit)`
+### `LengthUnit` (Standalone Enum)
 
-## UC7 Main Flow
+- `convertToBaseUnit(double value)`
+- `convertFromBaseUnit(double baseValue)`
+- Maintains conversion factors per unit
 
-1. Validate both operands and target unit.
-2. Convert both operands to base unit (`FEET`).
-3. Add normalized values.
-4. Convert sum to explicitly specified `targetUnit`.
-5. Return new immutable `QuantityLength`.
+### `QuantityLength`
+
+- Equality across same/cross units
+- Unit conversion by delegating to `LengthUnit`
+- Addition (UC6 and UC7 styles)
+- Input validation and immutability
+
+## Main Flow (UC8)
+
+1. Extract `LengthUnit` as a top-level enum.
+2. Implement conversion methods in `LengthUnit` for base-unit normalization.
+3. Remove internal conversion formulas from `QuantityLength`.
+4. Delegate conversion/equality/addition normalization through `LengthUnit`.
+5. Keep all public behavior from UC1–UC7 unchanged.
 
 ## Validation Rules
 
 - Operand values must be finite (`NaN`/`Infinity` are rejected).
 - Operands must be non-null.
-- Target unit must be a valid `LengthUnit`.
+- Units and target units must be valid `LengthUnit` values.
 - Invalid input throws `ArgumentException` or `ArgumentNullException`.
 
-## UC7 Example Outputs
+## Example Outputs
 
-- `add(Quantity(1.0, FEET), Quantity(12.0, INCH), FEET)` -> `Quantity(2.0, FEET)`
-- `add(Quantity(1.0, FEET), Quantity(12.0, INCH), INCH)` -> `Quantity(24.0, INCH)`
-- `add(Quantity(1.0, FEET), Quantity(12.0, INCH), YARD)` -> `Quantity(~0.667, YARD)`
-- `add(Quantity(1.0, YARD), Quantity(3.0, FEET), YARD)` -> `Quantity(2.0, YARD)`
-- `add(Quantity(36.0, INCH), Quantity(1.0, YARD), FEET)` -> `Quantity(6.0, FEET)`
-- `add(Quantity(2.54, CENTIMETER), Quantity(1.0, INCH), CENTIMETER)` -> `Quantity(~5.08, CENTIMETER)`
-- `add(Quantity(5.0, FEET), Quantity(0.0, INCH), YARD)` -> `Quantity(~1.667, YARD)`
-- `add(Quantity(5.0, FEET), Quantity(-2.0, FEET), INCH)` -> `Quantity(36.0, INCH)`
+- `Quantity(1.0, FEET).convertTo(INCH)` -> `Quantity(12.0, INCH)`
+- `Quantity(1.0, FEET).add(Quantity(12.0, INCH), FEET)` -> `Quantity(2.0, FEET)`
+- `Quantity(36.0, INCH).equals(Quantity(1.0, YARD))` -> `true`
+- `Quantity(1.0, YARD).add(Quantity(3.0, FEET), YARD)` -> `Quantity(2.0, YARD)`
+- `Quantity(2.54, CENTIMETER).convertTo(INCH)` -> `Quantity(~1.0, INCH)`
+- `LengthUnit.FEET.convertToBaseUnit(12.0)` -> `12.0`
+- `LengthUnit.INCH.convertToBaseUnit(12.0)` -> `1.0`
 
-## Key UC7 Concepts
+## Postconditions
 
-- Method overloading for implicit and explicit target unit behavior.
-- Reuse of conversion infrastructure from UC5/UC6.
-- DRY design through common base-unit normalization.
-- Commutativity preserved with fixed target unit.
-- Precision handled via epsilon-based assertions in tests.
+- `LengthUnit` is standalone and owns conversion logic.
+- `QuantityLength` is simplified and conversion-aware via delegation.
+- Circular dependency risk is reduced for future categories.
+- SRP is reinforced (`LengthUnit` = conversion, `QuantityLength` = domain behavior).
+- Equality/conversion/addition from UC1–UC7 remain functionally consistent.
 
-## UC7 Test Coverage
+## Key Concepts
 
-- Explicit target = first operand unit
-- Explicit target = second operand unit
-- Explicit target different from both operands
-- Commutativity with explicit target unit
-- Zero and negative values with target conversion
-- Large-to-small and small-to-large scale conversion
-- Null/invalid input validation
+- Single Responsibility Principle
+- Separation of concerns
+- Delegation pattern
+- Encapsulation of conversion logic
+- Backward-compatible refactoring
+- Scalable architecture for future categories (`WeightUnit`, `VolumeUnit`, etc.)
+
+## UC8 Test Coverage Checklist
+
+- Standalone `LengthUnit` constants and conversion factors
+- `convertToBaseUnit` / `convertFromBaseUnit` correctness for all units
+- `QuantityLength` equality delegation with cross-unit comparisons
+- `convertTo` delegation behavior and round-trip accuracy
+- Addition (UC6 + UC7 styles) after refactor
+- Null/invalid value validation
+- Backward compatibility for UC1–UC7 tests
+- Architectural readiness for additional measurement categories
 
 Run tests:
 
