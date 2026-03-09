@@ -65,6 +65,18 @@ namespace QuantityMeasurementApp
             var weight1 = new Quantity<WeightUnit>(2.0, WeightUnit.KILOGRAM);
             var weight2 = new Quantity<WeightUnit>(2000.0, WeightUnit.GRAM);
             Console.WriteLine($"Quantity<WeightUnit>(2.0, KILOGRAM).equals(Quantity<WeightUnit>(2000.0, GRAM)) ? {weight1.Equals(weight2)}");
+
+            Console.WriteLine();
+            Console.WriteLine("UC11 Volume Equality, Conversion, and Addition:");
+            var volume1 = new Quantity<VolumeUnit>(1.0, VolumeUnit.LITRE);
+            var volume2 = new Quantity<VolumeUnit>(1000.0, VolumeUnit.MILLILITRE);
+            Console.WriteLine($"Quantity<VolumeUnit>(1.0, LITRE).equals(Quantity<VolumeUnit>(1000.0, MILLILITRE)) ? {volume1.Equals(volume2)}");
+
+            var volumeInGallon = volume1.ConvertTo(VolumeUnit.GALLON);
+            Console.WriteLine($"Quantity<VolumeUnit>(1.0, LITRE).convertTo(GALLON) ? {volumeInGallon}");
+
+            var volumeSum = Quantity<VolumeUnit>.Add(volume1, new Quantity<VolumeUnit>(1.0, VolumeUnit.GALLON), VolumeUnit.LITRE);
+            Console.WriteLine($"add(Quantity(1.0, LITRE), Quantity(1.0, GALLON), LITRE) ? {volumeSum}");
         }
     }
 }

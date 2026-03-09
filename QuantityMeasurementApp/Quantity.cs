@@ -101,6 +101,7 @@ namespace QuantityMeasurementApp
             {
                 "LengthUnit" => typeof(LengthUnitExtensions).GetMethod("ConvertToBaseUnit"),
                 "WeightUnit" => typeof(WeightUnitExtensions).GetMethod("ConvertToBaseUnit"),
+                "VolumeUnit" => typeof(VolumeUnitExtensions).GetMethod("ConvertToBaseUnit"),
                 _ => throw new NotSupportedException($"Unit type {typeof(T).Name} is not supported")
             };
 
@@ -120,6 +121,7 @@ namespace QuantityMeasurementApp
             {
                 "LengthUnit" => typeof(LengthUnitExtensions).GetMethod("ConvertFromBaseUnit"),
                 "WeightUnit" => typeof(WeightUnitExtensions).GetMethod("ConvertFromBaseUnit"),
+                "VolumeUnit" => typeof(VolumeUnitExtensions).GetMethod("ConvertFromBaseUnit"),
                 _ => throw new NotSupportedException($"Unit type {typeof(T).Name} is not supported")
             };
 

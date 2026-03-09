@@ -562,4 +562,176 @@ namespace QuantityMeasurementApp.Tests
             Assert.AreEqual(2e6, result.Value, EPSILON);
         }
     }
+
+    [TestClass]
+    public class VolumeUnitStandaloneConversionTest
+    {
+        private const double EPSILON = 1e-4;
+
+        [TestMethod]
+        public void testConvertToBaseUnit_LitreToLitre()
+        {
+            Assert.AreEqual(1.0, VolumeUnit.LITRE.ConvertToBaseUnit(1.0), EPSILON);
+        }
+
+        [TestMethod]
+        public void testConvertToBaseUnit_MillilitreToLitre()
+        {
+            Assert.AreEqual(1.0, VolumeUnit.MILLILITRE.ConvertToBaseUnit(1000.0), EPSILON);
+        }
+
+        [TestMethod]
+        public void testConvertToBaseUnit_GallonToLitre()
+        {
+            Assert.AreEqual(3.78541, VolumeUnit.GALLON.ConvertToBaseUnit(1.0), EPSILON);
+        }
+
+        [TestMethod]
+        public void testConvertFromBaseUnit_LitreToMillilitre()
+        {
+            Assert.AreEqual(1000.0, VolumeUnit.MILLILITRE.ConvertFromBaseUnit(1.0), EPSILON);
+        }
+
+        [TestMethod]
+        public void testConvertFromBaseUnit_LitreToGallon()
+        {
+            Assert.AreEqual(0.264172, VolumeUnit.GALLON.ConvertFromBaseUnit(1.0), 1e-4);
+        }
+    }
+
+    [TestClass]
+    public class QuantityVolumeEqualityTest
+    {
+        [TestMethod]
+        public void testEquality_LitreToLitre_SameValue()
+        {
+            var q1 = new Quantity<VolumeUnit>(1.0, VolumeUnit.LITRE);
+            var q2 = new Quantity<VolumeUnit>(1.0, VolumeUnit.LITRE);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+
+        [TestMethod]
+        public void testEquality_LitreToMillilitre_EquivalentValue()
+        {
+            var q1 = new Quantity<VolumeUnit>(1.0, VolumeUnit.LITRE);
+            var q2 = new Quantity<VolumeUnit>(1000.0, VolumeUnit.MILLILITRE);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+
+        [TestMethod]
+        public void testEquality_GallonToLitre_EquivalentValue()
+        {
+            var q1 = new Quantity<VolumeUnit>(1.0, VolumeUnit.GALLON);
+            var q2 = new Quantity<VolumeUnit>(3.78541, VolumeUnit.LITRE);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+
+        [TestMethod]
+        public void testEquality_VolumeVsLength_Incompatible()
+        {
+            var volume = new Quantity<VolumeUnit>(1.0, VolumeUnit.LITRE);
+            var length = new QuantityLength(1.0, LengthUnit.FEET);
+
+            Assert.IsFalse(volume.Equals(length));
+        }
+
+        [TestMethod]
+        public void testEquality_VolumeVsWeight_Incompatible()
+        {
+            var volume = new Quantity<VolumeUnit>(1.0, VolumeUnit.LITRE);
+            var weight = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+
+            Assert.IsFalse(volume.Equals(weight));
+        }
+    }
+
+    [TestClass]
+    public class QuantityVolumeConversionTest
+    {
+        private const double EPSILON = 1e-4;
+
+        [TestMethod]
+        public void testConversion_LitreToMillilitre()
+        {
+            var result = Quantity<VolumeUnit>.Convert(1.0, VolumeUnit.LITRE, VolumeUnit.MILLILITRE);
+            Assert.AreEqual(1000.0, result, EPSILON);
+        }
+
+        [TestMethod]
+        public void testConversion_GallonToLitre()
+        {
+            var result = Quantity<VolumeUnit>.Convert(1.0, VolumeUnit.GALLON, VolumeUnit.LITRE);
+            Assert.AreEqual(3.78541, result, EPSILON);
+        }
+
+        [TestMethod]
+        public void testConversion_MillilitreToGallon()
+        {
+            var result = Quantity<VolumeUnit>.Convert(1000.0, VolumeUnit.MILLILITRE, VolumeUnit.GALLON);
+            Assert.AreEqual(0.264172, result, 1e-4);
+        }
+
+        [TestMethod]
+        public void testConversion_RoundTrip()
+        {
+            var original = 1.5;
+            var converted = Quantity<VolumeUnit>.Convert(original, VolumeUnit.LITRE, VolumeUnit.GALLON);
+            var roundTrip = Quantity<VolumeUnit>.Convert(converted, VolumeUnit.GALLON, VolumeUnit.LITRE);
+            Assert.AreEqual(original, roundTrip, EPSILON);
+        }
+    }
+
+    [TestClass]
+    public class QuantityVolumeAdditionTest
+    {
+        private const double EPSILON = 1e-4;
+
+        [TestMethod]
+        public void testAddition_SameUnit_LitrePlusLitre()
+        {
+            var result = Quantity<VolumeUnit>.Add(
+                new Quantity<VolumeUnit>(1.0, VolumeUnit.LITRE),
+                new Quantity<VolumeUnit>(2.0, VolumeUnit.LITRE));
+
+            Assert.AreEqual(VolumeUnit.LITRE, result.Unit);
+            Assert.AreEqual(3.0, result.Value, EPSILON);
+        }
+
+        [TestMethod]
+        public void testAddition_CrossUnit_LitrePlusMillilitre()
+        {
+            var result = Quantity<VolumeUnit>.Add(
+                new Quantity<VolumeUnit>(1.0, VolumeUnit.LITRE),
+                new Quantity<VolumeUnit>(1000.0, VolumeUnit.MILLILITRE));
+
+            Assert.AreEqual(VolumeUnit.LITRE, result.Unit);
+            Assert.AreEqual(2.0, result.Value, EPSILON);
+        }
+
+        [TestMethod]
+        public void testAddition_ExplicitTargetUnit_Millilitre()
+        {
+            var result = Quantity<VolumeUnit>.Add(
+                new Quantity<VolumeUnit>(1.0, VolumeUnit.LITRE),
+                new Quantity<VolumeUnit>(1.0, VolumeUnit.GALLON),
+                VolumeUnit.MILLILITRE);
+
+            Assert.AreEqual(VolumeUnit.MILLILITRE, result.Unit);
+            Assert.AreEqual(4785.41, result.Value, EPSILON);
+        }
+
+        [TestMethod]
+        public void testAddition_NegativeValues()
+        {
+            var result = Quantity<VolumeUnit>.Add(
+                new Quantity<VolumeUnit>(5.0, VolumeUnit.LITRE),
+                new Quantity<VolumeUnit>(-2000.0, VolumeUnit.MILLILITRE));
+
+            Assert.AreEqual(VolumeUnit.LITRE, result.Unit);
+            Assert.AreEqual(3.0, result.Value, EPSILON);
+        }
+    }
 }
