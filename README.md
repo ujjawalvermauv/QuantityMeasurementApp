@@ -1,93 +1,102 @@
 # QuantityMeasurementApp
 
-## UC8: Refactoring Unit Enum to Standalone with Conversion Responsibility
+## UC9: Weight Measurement Equality, Conversion, and Addition
 
-UC8 refactors the length model by extracting `LengthUnit` into a standalone top-level enum and moving conversion responsibilities into the enum itself.
+UC9 extends the application to support weight measurements alongside length measurements. This use case demonstrates that the generic patterns from UC1–UC8 scale seamlessly to multiple measurement categories.
 
-This removes conversion logic duplication inside `QuantityLength`, improves cohesion, reduces coupling, and keeps all behavior from UC1–UC7 unchanged.
+Weight supports three units:
 
-## UC8 Design Goal
+- `KILOGRAM` (kg) – base unit
+- `GRAM` (g) – 1 kg = 1000 g
+- `POUND` (lb) – 1 lb ≈ 0.453592 kg
 
-- `LengthUnit` handles unit-to-base and base-to-unit conversions.
-- `QuantityLength` focuses on validation, equality, conversion orchestration, and arithmetic.
-- Public API behavior remains backward compatible with UC1–UC7 client usage.
+## Design Consistency
 
-## Supported Units
+- `WeightUnit` enum parallels `LengthUnit` with standalone conversion responsibility.
+- `QuantityWeight` class parallels `QuantityLength` for weight measurements.
+- Weight and length are separate, type-safe categories that cannot be directly compared.
+- All UC1–UC8 length functionality remains unchanged.
 
-- `FEET`
-- `INCH`
-- `YARD`
-- `CENTIMETER`
+## Supported Measurement Categories
 
-Base unit for length remains `FEET`.
+### Length (UC1–UC8)
 
-## Responsibilities After Refactor
+- Units: `FEET`, `INCH`, `YARD`, `CENTIMETER`
+- Base unit: `FEET`
 
-### `LengthUnit` (Standalone Enum)
+### Weight (UC9)
 
-- `convertToBaseUnit(double value)`
-- `convertFromBaseUnit(double baseValue)`
-- Maintains conversion factors per unit
+- Units: `KILOGRAM`, `GRAM`, `POUND`
+- Base unit: `KILOGRAM`
 
-### `QuantityLength`
+## Weight API
 
-- Equality across same/cross units
-- Unit conversion by delegating to `LengthUnit`
-- Addition (UC6 and UC7 styles)
-- Input validation and immutability
-
-## Main Flow (UC8)
-
-1. Extract `LengthUnit` as a top-level enum.
-2. Implement conversion methods in `LengthUnit` for base-unit normalization.
-3. Remove internal conversion formulas from `QuantityLength`.
-4. Delegate conversion/equality/addition normalization through `LengthUnit`.
-5. Keep all public behavior from UC1–UC7 unchanged.
+- `QuantityWeight(double value, WeightUnit unit)`
+- `static double Convert(double value, WeightUnit source, WeightUnit target)`
+- `QuantityWeight ConvertTo(WeightUnit targetUnit)`
+- `QuantityWeight Add(QuantityWeight other)`
+- `static QuantityWeight Add(QuantityWeight first, QuantityWeight second)`
+- `static QuantityWeight Add(QuantityWeight first, QuantityWeight second, WeightUnit targetUnit)`
 
 ## Validation Rules
 
-- Operand values must be finite (`NaN`/`Infinity` are rejected).
-- Operands must be non-null.
-- Units and target units must be valid `LengthUnit` values.
-- Invalid input throws `ArgumentException` or `ArgumentNullException`.
+- Values must be finite (`NaN`/`Infinity` rejected).
+- Units must be valid `WeightUnit` values.
+- Operands and target units must be non-null.
+- Category type mismatch (weight vs. length) returns false in equals().
 
 ## Example Outputs
 
-- `Quantity(1.0, FEET).convertTo(INCH)` -> `Quantity(12.0, INCH)`
-- `Quantity(1.0, FEET).add(Quantity(12.0, INCH), FEET)` -> `Quantity(2.0, FEET)`
-- `Quantity(36.0, INCH).equals(Quantity(1.0, YARD))` -> `true`
-- `Quantity(1.0, YARD).add(Quantity(3.0, FEET), YARD)` -> `Quantity(2.0, YARD)`
-- `Quantity(2.54, CENTIMETER).convertTo(INCH)` -> `Quantity(~1.0, INCH)`
-- `LengthUnit.FEET.convertToBaseUnit(12.0)` -> `12.0`
-- `LengthUnit.INCH.convertToBaseUnit(12.0)` -> `1.0`
+**Equality Comparisons:**
 
-## Postconditions
+- `Quantity(1.0, KILOGRAM).equals(Quantity(1.0, KILOGRAM))` → `true`
+- `Quantity(1.0, KILOGRAM).equals(Quantity(1000.0, GRAM))` → `true`
+- `Quantity(2.20462, POUND).equals(Quantity(1.0, KILOGRAM))` → `true`
+- `Quantity(1.0, KILOGRAM).equals(Quantity(1.0, FOOT))` → `false` (incompatible categories)
 
-- `LengthUnit` is standalone and owns conversion logic.
-- `QuantityLength` is simplified and conversion-aware via delegation.
-- Circular dependency risk is reduced for future categories.
-- SRP is reinforced (`LengthUnit` = conversion, `QuantityLength` = domain behavior).
-- Equality/conversion/addition from UC1–UC7 remain functionally consistent.
+**Unit Conversions:**
 
-## Key Concepts
+- `Quantity(1.0, KILOGRAM).convertTo(GRAM)` → `Quantity(1000.0, GRAM)`
+- `Quantity(2.20462, POUND).convertTo(KILOGRAM)` → `Quantity(~1.0, KILOGRAM)`
+- `Quantity(500.0, GRAM).convertTo(POUND)` → `Quantity(~1.10231, POUND)`
 
-- Single Responsibility Principle
-- Separation of concerns
-- Delegation pattern
-- Encapsulation of conversion logic
-- Backward-compatible refactoring
-- Scalable architecture for future categories (`WeightUnit`, `VolumeUnit`, etc.)
+**Addition (Implicit Target Unit):**
 
-## UC8 Test Coverage Checklist
+- `Quantity(1.0, KILOGRAM).add(Quantity(2.0, KILOGRAM))` → `Quantity(3.0, KILOGRAM)`
+- `Quantity(1.0, KILOGRAM).add(Quantity(1000.0, GRAM))` → `Quantity(2.0, KILOGRAM)`
 
-- Standalone `LengthUnit` constants and conversion factors
-- `convertToBaseUnit` / `convertFromBaseUnit` correctness for all units
-- `QuantityLength` equality delegation with cross-unit comparisons
-- `convertTo` delegation behavior and round-trip accuracy
-- Addition (UC6 + UC7 styles) after refactor
-- Null/invalid value validation
-- Backward compatibility for UC1–UC7 tests
-- Architectural readiness for additional measurement categories
+**Addition (Explicit Target Unit):**
+
+- `Quantity(1.0, KILOGRAM).add(Quantity(1000.0, GRAM), GRAM)` → `Quantity(2000.0, GRAM)`
+- `Quantity(1.0, POUND).add(Quantity(453.592, GRAM), POUND)` → `Quantity(~2.0, POUND)`
+
+## Key UC9 Concepts
+
+- Multiple independent measurement categories
+- Scalable generic design patterns
+- Category type safety (weight vs. length incompatibility)
+- Base unit normalization per category
+- Conversion factor precision
+- Enum-based responsibility assignment
+- Immutability across categories
+
+## UC9 Test Coverage
+
+- Same-unit weight equality and inequality
+- Cross-unit weight equality (kg ↔ g, kg ↔ lb, g ↔ lb)
+- Weight vs. length incompatibility
+- Unit conversions between all weight unit pairs
+- Round-trip conversion accuracy
+- Addition with implicit target unit
+- Addition with explicit target unit
+- Zero, negative, and large magnitude values
+- Null and invalid input handling
+
+## Backward Compatibility
+
+- All UC1–UC8 length tests pass unchanged
+- `QuantityLength` and `QuantityWeight` coexist without conflict
+- No modifications to existing length code required
 
 Run tests:
 

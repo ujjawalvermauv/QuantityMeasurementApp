@@ -318,4 +318,248 @@ namespace QuantityMeasurementApp.Tests
             Assert.AreEqual(0.003, result.Value, EPSILON);
         }
     }
+
+    [TestClass]
+    public class QuantityWeightEqualityTest
+    {
+        private const double EPSILON = 1e-4;
+
+        [TestMethod]
+        public void testEquality_KilogramToKilogram_SameValue()
+        {
+            var q1 = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+            var q2 = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+
+        [TestMethod]
+        public void testEquality_KilogramToKilogram_DifferentValue()
+        {
+            var q1 = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+            var q2 = new QuantityWeight(2.0, WeightUnit.KILOGRAM);
+
+            Assert.IsFalse(q1.Equals(q2));
+        }
+
+        [TestMethod]
+        public void testEquality_GramToGram_SameValue()
+        {
+            var q1 = new QuantityWeight(1000.0, WeightUnit.GRAM);
+            var q2 = new QuantityWeight(1000.0, WeightUnit.GRAM);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+
+        [TestMethod]
+        public void testEquality_PoundToPound_SameValue()
+        {
+            var q1 = new QuantityWeight(2.0, WeightUnit.POUND);
+            var q2 = new QuantityWeight(2.0, WeightUnit.POUND);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+
+        [TestMethod]
+        public void testEquality_KilogramToGram_EquivalentValue()
+        {
+            var q1 = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+            var q2 = new QuantityWeight(1000.0, WeightUnit.GRAM);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+
+        [TestMethod]
+        public void testEquality_GramToKilogram_EquivalentValue()
+        {
+            var q1 = new QuantityWeight(1000.0, WeightUnit.GRAM);
+            var q2 = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+
+        [TestMethod]
+        public void testEquality_KilogramToPound_EquivalentValue()
+        {
+            var q1 = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+            var q2 = new QuantityWeight(2.20462, WeightUnit.POUND);
+
+            Assert.IsTrue(q1.Equals(q2), "1 kg should equal 2.20462 lbs within epsilon");
+        }
+
+        [TestMethod]
+        public void testEquality_WeightVsLength_Incompatible()
+        {
+            var weight = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+            var length = new QuantityLength(1.0, LengthUnit.FEET);
+
+            Assert.IsFalse(weight.Equals(length));
+        }
+
+        [TestMethod]
+        public void testEquality_NullComparison()
+        {
+            var q1 = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+            Assert.IsFalse(q1.Equals(null));
+        }
+
+        [TestMethod]
+        public void testEquality_SameReference()
+        {
+            var q1 = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+            Assert.IsTrue(q1.Equals(q1));
+        }
+
+        [TestMethod]
+        public void testEquality_NegativeWeight()
+        {
+            var q1 = new QuantityWeight(-1.0, WeightUnit.KILOGRAM);
+            var q2 = new QuantityWeight(-1000.0, WeightUnit.GRAM);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+
+        [TestMethod]
+        public void testEquality_ZeroValue()
+        {
+            var q1 = new QuantityWeight(0.0, WeightUnit.KILOGRAM);
+            var q2 = new QuantityWeight(0.0, WeightUnit.GRAM);
+
+            Assert.IsTrue(q1.Equals(q2));
+        }
+    }
+
+    [TestClass]
+    public class QuantityWeightConversionTest
+    {
+        private const double EPSILON = 1e-4;
+
+        [TestMethod]
+        public void testConversion_KilogramToGram()
+        {
+            var result = QuantityWeight.Convert(1.0, WeightUnit.KILOGRAM, WeightUnit.GRAM);
+            Assert.AreEqual(1000.0, result, EPSILON);
+        }
+
+        [TestMethod]
+        public void testConversion_GramToKilogram()
+        {
+            var result = QuantityWeight.Convert(1000.0, WeightUnit.GRAM, WeightUnit.KILOGRAM);
+            Assert.AreEqual(1.0, result, EPSILON);
+        }
+
+        [TestMethod]
+        public void testConversion_PoundToKilogram()
+        {
+            var result = QuantityWeight.Convert(2.20462, WeightUnit.POUND, WeightUnit.KILOGRAM);
+            Assert.AreEqual(1.0, result, 1e-4);
+        }
+
+        [TestMethod]
+        public void testConversion_KilogramToPound()
+        {
+            var result = QuantityWeight.Convert(1.0, WeightUnit.KILOGRAM, WeightUnit.POUND);
+            Assert.AreEqual(2.20462, result, 1e-4);
+        }
+
+        [TestMethod]
+        public void testConversion_SameUnit()
+        {
+            var result = QuantityWeight.Convert(5.0, WeightUnit.KILOGRAM, WeightUnit.KILOGRAM);
+            Assert.AreEqual(5.0, result, EPSILON);
+        }
+
+        [TestMethod]
+        public void testConversion_RoundTrip()
+        {
+            var original = 1.5;
+            var converted = QuantityWeight.Convert(original, WeightUnit.KILOGRAM, WeightUnit.GRAM);
+            var roundTrip = QuantityWeight.Convert(converted, WeightUnit.GRAM, WeightUnit.KILOGRAM);
+            Assert.AreEqual(original, roundTrip, EPSILON);
+        }
+    }
+
+    [TestClass]
+    public class QuantityWeightAdditionTest
+    {
+        private const double EPSILON = 1e-4;
+
+        [TestMethod]
+        public void testAddition_SameUnit_KilogramPlusKilogram()
+        {
+            var result = QuantityWeight.Add(
+                new QuantityWeight(1.0, WeightUnit.KILOGRAM),
+                new QuantityWeight(2.0, WeightUnit.KILOGRAM));
+
+            Assert.AreEqual(WeightUnit.KILOGRAM, result.Unit);
+            Assert.AreEqual(3.0, result.Value, EPSILON);
+        }
+
+        [TestMethod]
+        public void testAddition_SameUnit_GramPlusGram()
+        {
+            var result = QuantityWeight.Add(
+                new QuantityWeight(500.0, WeightUnit.GRAM),
+                new QuantityWeight(500.0, WeightUnit.GRAM));
+
+            Assert.AreEqual(WeightUnit.GRAM, result.Unit);
+            Assert.AreEqual(1000.0, result.Value, EPSILON);
+        }
+
+        [TestMethod]
+        public void testAddition_CrossUnit_KilogramPlusGram()
+        {
+            var result = QuantityWeight.Add(
+                new QuantityWeight(1.0, WeightUnit.KILOGRAM),
+                new QuantityWeight(1000.0, WeightUnit.GRAM));
+
+            Assert.AreEqual(WeightUnit.KILOGRAM, result.Unit);
+            Assert.AreEqual(2.0, result.Value, EPSILON);
+        }
+
+        [TestMethod]
+        public void testAddition_ExplicitTargetUnit_Gram()
+        {
+            var result = QuantityWeight.Add(
+                new QuantityWeight(1.0, WeightUnit.KILOGRAM),
+                new QuantityWeight(1000.0, WeightUnit.GRAM),
+                WeightUnit.GRAM);
+
+            Assert.AreEqual(WeightUnit.GRAM, result.Unit);
+            Assert.AreEqual(2000.0, result.Value, EPSILON);
+        }
+
+        [TestMethod]
+        public void testAddition_WithZero()
+        {
+            var result = QuantityWeight.Add(
+                new QuantityWeight(5.0, WeightUnit.KILOGRAM),
+                new QuantityWeight(0.0, WeightUnit.GRAM));
+
+            Assert.AreEqual(WeightUnit.KILOGRAM, result.Unit);
+            Assert.AreEqual(5.0, result.Value, EPSILON);
+        }
+
+        [TestMethod]
+        public void testAddition_NegativeValues()
+        {
+            var result = QuantityWeight.Add(
+                new QuantityWeight(5.0, WeightUnit.KILOGRAM),
+                new QuantityWeight(-2000.0, WeightUnit.GRAM));
+
+            Assert.AreEqual(WeightUnit.KILOGRAM, result.Unit);
+            Assert.AreEqual(3.0, result.Value, EPSILON);
+        }
+
+        [TestMethod]
+        public void testAddition_LargeValues()
+        {
+            var result = QuantityWeight.Add(
+                new QuantityWeight(1e6, WeightUnit.KILOGRAM),
+                new QuantityWeight(1e6, WeightUnit.KILOGRAM));
+
+            Assert.AreEqual(WeightUnit.KILOGRAM, result.Unit);
+            Assert.AreEqual(2e6, result.Value, EPSILON);
+        }
+    }
 }

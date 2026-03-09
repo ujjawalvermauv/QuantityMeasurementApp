@@ -114,6 +114,118 @@ namespace QuantityMeasurementApp
         }
     }
 
+    public class QuantityWeight
+    {
+        private readonly double value;
+        private readonly WeightUnit unit;
+
+        private const double EPSILON = 1e-4;
+
+        public QuantityWeight(double value, WeightUnit unit)
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value))
+                throw new ArgumentException("Invalid numeric value");
+
+            if (!Enum.IsDefined(typeof(WeightUnit), unit))
+                throw new ArgumentException("Invalid weight unit");
+
+            this.value = value;
+            this.unit = unit;
+        }
+
+        public double Value => value;
+
+        public WeightUnit Unit => unit;
+
+        private double ToKilogram()
+        {
+            return unit.ConvertToBaseUnit(value);
+        }
+
+        public static double Convert(double value, WeightUnit source, WeightUnit target)
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value))
+                throw new ArgumentException("Invalid numeric value");
+
+            if (!Enum.IsDefined(typeof(WeightUnit), source))
+                throw new ArgumentException("Invalid source unit");
+
+            if (!Enum.IsDefined(typeof(WeightUnit), target))
+                throw new ArgumentException("Invalid target unit");
+
+            double valueInKilogram = source.ConvertToBaseUnit(value);
+            return target.ConvertFromBaseUnit(valueInKilogram);
+        }
+
+        public QuantityWeight ConvertTo(WeightUnit targetUnit)
+        {
+            double convertedValue = Convert(this.value, this.unit, targetUnit);
+            return new QuantityWeight(convertedValue, targetUnit);
+        }
+
+        public QuantityWeight Add(QuantityWeight other)
+        {
+            return Add(this, other, this.unit);
+        }
+
+        public static QuantityWeight Add(QuantityWeight first, QuantityWeight second)
+        {
+            if (first == null)
+                throw new ArgumentNullException(nameof(first));
+
+            return Add(first, second, first.unit);
+        }
+
+        public static QuantityWeight Add(QuantityWeight first, QuantityWeight second, WeightUnit targetUnit)
+        {
+            if (first == null)
+                throw new ArgumentNullException(nameof(first));
+
+            if (second == null)
+                throw new ArgumentNullException(nameof(second));
+
+            if (!Enum.IsDefined(typeof(WeightUnit), targetUnit))
+                throw new ArgumentException("Invalid target unit");
+
+            double firstInKilogram = first.ToKilogram();
+            double secondInKilogram = second.ToKilogram();
+            double sumInKilogram = firstInKilogram + secondInKilogram;
+
+            double sumInTarget = targetUnit.ConvertFromBaseUnit(sumInKilogram);
+            return new QuantityWeight(sumInTarget, targetUnit);
+        }
+
+        public static QuantityWeight Add(double firstValue, WeightUnit firstUnit, double secondValue, WeightUnit secondUnit, WeightUnit targetUnit)
+        {
+            var first = new QuantityWeight(firstValue, firstUnit);
+            var second = new QuantityWeight(secondValue, secondUnit);
+            return Add(first, second, targetUnit);
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (this == obj)
+                return true;
+
+            if (obj == null || this.GetType() != obj.GetType())
+                return false;
+
+            QuantityWeight other = (QuantityWeight)obj;
+
+            return Math.Abs(this.ToKilogram() - other.ToKilogram()) < EPSILON;
+        }
+
+        public override int GetHashCode()
+        {
+            return ToKilogram().GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return $"Quantity({value}, {unit})";
+        }
+    }
+
     class Program
     {
         static void Main(string[] args)
@@ -139,6 +251,34 @@ namespace QuantityMeasurementApp
             Console.WriteLine("Addition Examples:");
             Console.WriteLine($"add(Quantity(1.0, FEET), Quantity(12.0, INCH), FEET) ? {QuantityLength.Add(new QuantityLength(1.0, LengthUnit.FEET), new QuantityLength(12.0, LengthUnit.INCH), LengthUnit.FEET)}");
             Console.WriteLine($"add(Quantity(1.0, FEET), Quantity(12.0, INCH), YARD) ? {QuantityLength.Add(new QuantityLength(1.0, LengthUnit.FEET), new QuantityLength(12.0, LengthUnit.INCH), LengthUnit.YARD)}");
+
+            Console.WriteLine();
+            Console.WriteLine("UC9 Weight Equality Comparisons:");
+            var w1 = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+            var w2 = new QuantityWeight(1000.0, WeightUnit.GRAM);
+            Console.WriteLine($"Quantity(1.0, KILOGRAM).equals(Quantity(1000.0, GRAM)) ? {w1.Equals(w2)}");
+            
+            var w3 = new QuantityWeight(2.20462, WeightUnit.POUND);
+            var w4 = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+            Console.WriteLine($"Quantity(2.20462, POUND).equals(Quantity(1.0, KILOGRAM)) ? {w3.Equals(w4)}");
+
+            Console.WriteLine();
+            Console.WriteLine("UC9 Weight Conversions:");
+            var wkg = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+            Console.WriteLine($"Quantity(1.0, KILOGRAM).convertTo(GRAM) ? {wkg.ConvertTo(WeightUnit.GRAM)}");
+            
+            var wpound = new QuantityWeight(2.20462, WeightUnit.POUND);
+            Console.WriteLine($"Quantity(2.20462, POUND).convertTo(KILOGRAM) ? {wpound.ConvertTo(WeightUnit.KILOGRAM)}");
+
+            Console.WriteLine();
+            Console.WriteLine("UC9 Weight Addition:");
+            var wa1 = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+            var wa2 = new QuantityWeight(1000.0, WeightUnit.GRAM);
+            Console.WriteLine($"add(Quantity(1.0, KILOGRAM), Quantity(1000.0, GRAM)) ? {QuantityWeight.Add(wa1, wa2)}");
+            
+            var wa3 = new QuantityWeight(1.0, WeightUnit.KILOGRAM);
+            var wa4 = new QuantityWeight(1000.0, WeightUnit.GRAM);
+            Console.WriteLine($"add(Quantity(1.0, KILOGRAM), Quantity(1000.0, GRAM), GRAM) ? {QuantityWeight.Add(wa3, wa4, WeightUnit.GRAM)}");
         }
     }
 }
