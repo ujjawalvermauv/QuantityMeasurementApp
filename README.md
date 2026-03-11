@@ -1,26 +1,18 @@
 # QuantityMeasurementApp
 
-## UC12: Subtraction and Division Operations on Quantity Measurements
+## UC13: Centralized Arithmetic Logic (DRY Refactor)
 
-This use case introduces subtraction and division into the generic quantity model while preserving previous functionality (equality, conversion, and addition).
+UC13 refactors arithmetic operations introduced in UC12 to remove duplication while preserving behavior and public APIs.
 
-The project now uses a generic immutable type:
+The core design now routes `Add`, `Subtract`, and `Divide` through centralized private helpers inside `Quantity<U>`:
 
-- `Quantity<U>` where `U : struct, Enum`
+- `ValidateArithmeticOperands(...)`
+- `PerformBaseArithmetic(...)`
+- enum-based operation dispatch via `ArithmeticOperation`
 
-Supported categories:
+This keeps all validation, base-unit normalization, and operation dispatch in one place.
 
-- `LengthUnit` (`FEET`, `INCH`, `YARD`, `CENTIMETER`)
-- `WeightUnit` (`KILOGRAM`, `GRAM`)
-- `VolumeUnit` (`LITRE`, `MILLILITRE`)
-
-Conversions are normalized via a category-specific base unit:
-
-- Length base: `FEET`
-- Weight base: `KILOGRAM`
-- Volume base: `LITRE`
-
-## UC12 APIs
+## Public API (Unchanged)
 
 - `Quantity<U> Add(Quantity<U> other)`
 - `Quantity<U> Add(Quantity<U> other, U targetUnit)`
@@ -29,65 +21,79 @@ Conversions are normalized via a category-specific base unit:
 - `double Divide(Quantity<U> other)`
 - `Quantity<U> ConvertTo(U targetUnit)`
 
-## Arithmetic Behavior
+## Supported Unit Categories
 
-Subtraction:
+- `LengthUnit`: `FEET`, `INCH`, `YARD`, `CENTIMETER`
+- `WeightUnit`: `KILOGRAM`, `GRAM`
+- `VolumeUnit`: `LITRE`, `MILLILITRE`
 
-- Supports same-unit and cross-unit arithmetic within a category.
-- Implicit result unit is the first operand unit.
-- Explicit target unit can be specified.
-- Result is rounded to 2 decimal places.
-- Returns a new immutable `Quantity<U>`.
+Base units used for normalization:
 
-Division:
+- Length -> `FEET`
+- Weight -> `KILOGRAM`
+- Volume -> `LITRE`
 
-- Supports same-unit and cross-unit division within a category.
-- Returns a dimensionless `double` ratio.
-- Does not round the ratio result.
-- Throws `ArithmeticException` when divisor is zero.
+## UC13 Internal Flow
 
-## Validation Rules
+For `Add` and `Subtract`:
 
-- Values must be finite (`NaN` and `Infinity` are rejected).
-- Operand quantities must be non-null.
-- Target units must be valid enum values.
-- Cross-category arithmetic is prevented by generic type safety (`Quantity<LengthUnit>` cannot operate with `Quantity<WeightUnit>`).
+1. Validate operands and target unit.
+2. Convert both quantities to base unit.
+3. Compute via enum operation dispatch.
+4. Convert result to target unit.
+5. Round to two decimals and return new immutable `Quantity<U>`.
 
-## Example Operations
+For `Divide`:
+
+1. Validate operands.
+2. Convert both quantities to base unit.
+3. Compute base ratio.
+4. Return raw `double` (no rounding).
+
+## Validation and Error Handling
+
+- Rejects null operands (`ArgumentNullException`).
+- Rejects invalid enum unit values (`ArgumentException`).
+- Rejects non-finite numeric values (`ArgumentException`).
+- Rejects zero divisor in division (`ArithmeticException`).
+- Cross-category arithmetic is prevented by generic type safety at compile time.
+
+## Behavior Examples
+
+Addition:
+
+- `new Quantity<LengthUnit>(1.0, LengthUnit.FEET).Add(new Quantity<LengthUnit>(12.0, LengthUnit.INCH))`
+  -> `Quantity(2, FEET)`
+- `new Quantity<WeightUnit>(10.0, WeightUnit.KILOGRAM).Add(new Quantity<WeightUnit>(5000.0, WeightUnit.GRAM), WeightUnit.GRAM)`
+  -> `Quantity(15000, GRAM)`
 
 Subtraction:
 
 - `new Quantity<LengthUnit>(10.0, LengthUnit.FEET).Subtract(new Quantity<LengthUnit>(6.0, LengthUnit.INCH))`
-  returns `Quantity(9.5, FEET)`
-- `new Quantity<LengthUnit>(10.0, LengthUnit.FEET).Subtract(new Quantity<LengthUnit>(6.0, LengthUnit.INCH), LengthUnit.INCH)`
-  returns `Quantity(114, INCH)`
-- `new Quantity<WeightUnit>(10.0, WeightUnit.KILOGRAM).Subtract(new Quantity<WeightUnit>(5000.0, WeightUnit.GRAM))`
-  returns `Quantity(5, KILOGRAM)`
+  -> `Quantity(9.5, FEET)`
+- `new Quantity<VolumeUnit>(5.0, VolumeUnit.LITRE).Subtract(new Quantity<VolumeUnit>(2.0, VolumeUnit.LITRE), VolumeUnit.MILLILITRE)`
+  -> `Quantity(3000, MILLILITRE)`
 
 Division:
 
 - `new Quantity<LengthUnit>(24.0, LengthUnit.INCH).Divide(new Quantity<LengthUnit>(2.0, LengthUnit.FEET))`
-  returns `1.0`
-- `new Quantity<WeightUnit>(2000.0, WeightUnit.GRAM).Divide(new Quantity<WeightUnit>(1.0, WeightUnit.KILOGRAM))`
-  returns `2.0`
-- `new Quantity<VolumeUnit>(5.0, VolumeUnit.LITRE).Divide(new Quantity<VolumeUnit>(10.0, VolumeUnit.LITRE))`
-  returns `0.5`
+  -> `1.0`
 
-## Running the App
+## Running the Application
 
 ```bash
 dotnet run --project QuantityMeasurementApp
 ```
 
-## Running Tests
+## Running Unit Tests
 
 ```bash
 dotnet test
 ```
 
-## SOLID / Object Calisthenics Notes
+## UC13 Outcomes
 
-- `Quantity<U>` follows SRP for quantity state and arithmetic behavior.
-- `UnitConverter` centralizes conversion logic to avoid duplication.
-- Immutability is preserved in all operations.
-- Current conversion dispatch uses type checks in `UnitConverter`; for future extensibility this can be refactored toward a strategy/provider model per unit category.
+- DRY principle enforced for arithmetic paths.
+- Public behavior remains backward compatible with UC12.
+- Validation and conversion logic are maintained in one place.
+- Future operations can follow the same operation-dispatch pattern.

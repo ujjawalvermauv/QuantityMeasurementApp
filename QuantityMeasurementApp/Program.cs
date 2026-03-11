@@ -30,6 +30,13 @@ namespace QuantityMeasurementApp
     {
         private const double EPSILON = 1e-9;
 
+        private enum ArithmeticOperation
+        {
+            ADD,
+            SUBTRACT,
+            DIVIDE
+        }
+
         public Quantity(double value, U unit)
         {
             ValidateFinite(value, nameof(value));
@@ -53,6 +60,7 @@ namespace QuantityMeasurementApp
             return new Quantity<U>(RoundToTwo(converted), targetUnit);
         }
 
+        // UC13: Public API methods delegate to centralized helpers
         public Quantity<U> Add(Quantity<U> other)
         {
             return Add(other, Unit);
@@ -60,13 +68,7 @@ namespace QuantityMeasurementApp
 
         public Quantity<U> Add(Quantity<U> other, U targetUnit)
         {
-            ValidateOperand(other);
-            ValidateEnumUnit(targetUnit, nameof(targetUnit));
-
-            double resultInBase = UnitConverter.ToBase(Value, Unit) + UnitConverter.ToBase(other.Value, other.Unit);
-            double resultInTarget = UnitConverter.FromBase(resultInBase, targetUnit);
-
-            return new Quantity<U>(RoundToTwo(resultInTarget), targetUnit);
+            return PerformQuantityArithmetic(other, targetUnit, ArithmeticOperation.ADD);
         }
 
         public Quantity<U> Subtract(Quantity<U> other)
@@ -76,28 +78,21 @@ namespace QuantityMeasurementApp
 
         public Quantity<U> Subtract(Quantity<U> other, U targetUnit)
         {
-            ValidateOperand(other);
-            ValidateEnumUnit(targetUnit, nameof(targetUnit));
-
-            double resultInBase = UnitConverter.ToBase(Value, Unit) - UnitConverter.ToBase(other.Value, other.Unit);
-            double resultInTarget = UnitConverter.FromBase(resultInBase, targetUnit);
-
-            return new Quantity<U>(RoundToTwo(resultInTarget), targetUnit);
+            return PerformQuantityArithmetic(other, targetUnit, ArithmeticOperation.SUBTRACT);
         }
 
         public double Divide(Quantity<U> other)
         {
-            ValidateOperand(other);
+            ValidateArithmeticOperands(other, Unit, targetUnitRequired: false);
+            return PerformBaseArithmetic(other, ArithmeticOperation.DIVIDE);
+        }
 
-            double dividend = UnitConverter.ToBase(Value, Unit);
-            double divisor = UnitConverter.ToBase(other.Value, other.Unit);
-
-            if (Math.Abs(divisor) < EPSILON)
-            {
-                throw new ArithmeticException("Cannot divide by zero quantity.");
-            }
-
-            return dividend / divisor;
+        private Quantity<U> PerformQuantityArithmetic(Quantity<U> other, U targetUnit, ArithmeticOperation operation)
+        {
+            ValidateArithmeticOperands(other, targetUnit, targetUnitRequired: true);
+            double resultInBase = PerformBaseArithmetic(other, operation);
+            double resultInTarget = UnitConverter.FromBase(resultInBase, targetUnit);
+            return new Quantity<U>(RoundToTwo(resultInTarget), targetUnit);
         }
 
         public override bool Equals(object? obj)
@@ -144,15 +139,59 @@ namespace QuantityMeasurementApp
             }
         }
 
-        private static void ValidateOperand(Quantity<U>? other)
+        // UC13: Centralized validation for all arithmetic operations
+        private void ValidateArithmeticOperands(Quantity<U>? other, U targetUnit, bool targetUnitRequired)
         {
             if (other is null)
             {
-                throw new ArgumentNullException(nameof(other));
+                throw new ArgumentNullException(nameof(other), "Operand cannot be null.");
             }
 
+            ValidateFinite(Value, nameof(Value));
             ValidateFinite(other.Value, nameof(other.Value));
+            ValidateEnumUnit(Unit, nameof(Unit));
             ValidateEnumUnit(other.Unit, nameof(other.Unit));
+
+            if (Unit.GetType() != other.Unit.GetType())
+            {
+                throw new ArgumentException("Cannot perform arithmetic across different unit categories.");
+            }
+
+            if (targetUnitRequired)
+            {
+                ValidateEnumUnit(targetUnit, nameof(targetUnit));
+            }
+        }
+
+        // UC13: Centralized arithmetic operation execution
+        private double PerformBaseArithmetic(Quantity<U> other, ArithmeticOperation operation)
+        {
+            double thisInBase = UnitConverter.ToBase(Value, Unit);
+            double otherInBase = UnitConverter.ToBase(other.Value, other.Unit);
+
+            return Compute(operation, thisInBase, otherInBase);
+        }
+
+        private static double Compute(ArithmeticOperation operation, double left, double right)
+        {
+            return operation switch
+            {
+                ArithmeticOperation.ADD => left + right,
+                ArithmeticOperation.SUBTRACT => left - right,
+                ArithmeticOperation.DIVIDE => PerformDivision(left, right),
+                _ => throw new ArgumentException("Unknown arithmetic operation.")
+            };
+        }
+
+        // UC13: Division with zero-divisor guard
+        private static double PerformDivision(double dividend, double divisor)
+        {
+            if (Math.Abs(divisor) < EPSILON)
+            {
+                throw new ArithmeticException("Cannot divide by zero quantity.");
+            }
+
+            return dividend / divisor;
         }
 
         private static double RoundToTwo(double value)
@@ -254,14 +293,30 @@ namespace QuantityMeasurementApp
     {
         private static void Main()
         {
+            DemonstrateAddition();
+            Console.WriteLine();
             DemonstrateSubtraction();
             Console.WriteLine();
             DemonstrateDivision();
         }
 
+        private static void DemonstrateAddition()
+        {
+            Console.WriteLine("UC13 Addition Examples:");
+
+            var lengthImplicit = new Quantity<LengthUnit>(1.0, LengthUnit.FEET)
+                .Add(new Quantity<LengthUnit>(12.0, LengthUnit.INCH));
+
+            var weightExplicit = new Quantity<WeightUnit>(10.0, WeightUnit.KILOGRAM)
+                .Add(new Quantity<WeightUnit>(5000.0, WeightUnit.GRAM), WeightUnit.GRAM);
+
+            Console.WriteLine($"1 FEET + 12 INCH = {lengthImplicit}");
+            Console.WriteLine($"10 KILOGRAM + 5000 GRAM (in GRAM) = {weightExplicit}");
+        }
+
         private static void DemonstrateSubtraction()
         {
-            Console.WriteLine("UC12 Subtraction Examples:");
+            Console.WriteLine("UC13 Subtraction Examples:");
 
             var lengthImplicit = new Quantity<LengthUnit>(10.0, LengthUnit.FEET)
                 .Subtract(new Quantity<LengthUnit>(6.0, LengthUnit.INCH));
@@ -283,7 +338,7 @@ namespace QuantityMeasurementApp
 
         private static void DemonstrateDivision()
         {
-            Console.WriteLine("UC12 Division Examples:");
+            Console.WriteLine("UC13 Division Examples:");
 
             double lengthRatio = new Quantity<LengthUnit>(24.0, LengthUnit.INCH)
                 .Divide(new Quantity<LengthUnit>(2.0, LengthUnit.FEET));
