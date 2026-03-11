@@ -232,4 +232,112 @@ namespace QuantityMeasurementApp.Tests
             Assert.AreEqual(0.5, b.Divide(a), EPSILON);
         }
     }
+
+    [TestClass]
+    public class QuantityUc14Tests_TemperatureAndSelectiveArithmetic
+    {
+        private const double EPSILON = 1e-6;
+
+        [TestMethod]
+        public void testTemperatureEquality_CelsiusToFahrenheit_ZeroPoint()
+        {
+            var celsius = new Quantity<TemperatureUnit>(0.0, TemperatureUnit.CELSIUS);
+            var fahrenheit = new Quantity<TemperatureUnit>(32.0, TemperatureUnit.FAHRENHEIT);
+
+            Assert.IsTrue(celsius.Equals(fahrenheit));
+            Assert.IsTrue(fahrenheit.Equals(celsius));
+        }
+
+        [TestMethod]
+        public void testTemperatureEquality_CelsiusToKelvin_ZeroPoint()
+        {
+            var celsius = new Quantity<TemperatureUnit>(0.0, TemperatureUnit.CELSIUS);
+            var kelvin = new Quantity<TemperatureUnit>(273.15, TemperatureUnit.KELVIN);
+
+            Assert.IsTrue(celsius.Equals(kelvin));
+        }
+
+        [TestMethod]
+        public void testTemperatureConversion_CelsiusToFahrenheit()
+        {
+            var converted = new Quantity<TemperatureUnit>(100.0, TemperatureUnit.CELSIUS)
+                .ConvertTo(TemperatureUnit.FAHRENHEIT);
+
+            Assert.AreEqual(TemperatureUnit.FAHRENHEIT, converted.Unit);
+            Assert.AreEqual(212.0, converted.Value, EPSILON);
+        }
+
+        [TestMethod]
+        public void testTemperatureConversion_KelvinToCelsius()
+        {
+            var converted = new Quantity<TemperatureUnit>(273.15, TemperatureUnit.KELVIN)
+                .ConvertTo(TemperatureUnit.CELSIUS);
+
+            Assert.AreEqual(TemperatureUnit.CELSIUS, converted.Unit);
+            Assert.AreEqual(0.0, converted.Value, EPSILON);
+        }
+
+        [TestMethod]
+        public void testTemperatureConversion_Negative40_EqualPoint()
+        {
+            var converted = new Quantity<TemperatureUnit>(-40.0, TemperatureUnit.CELSIUS)
+                .ConvertTo(TemperatureUnit.FAHRENHEIT);
+
+            Assert.AreEqual(-40.0, converted.Value, EPSILON);
+        }
+
+        [TestMethod]
+        public void testTemperatureUnsupportedOperation_Add_Throws()
+        {
+            var first = new Quantity<TemperatureUnit>(100.0, TemperatureUnit.CELSIUS);
+            bool exceptionThrown = false;
+
+            try { _ = first.Add(new Quantity<TemperatureUnit>(50.0, TemperatureUnit.CELSIUS)); }
+            catch (UnsupportedOperationException) { exceptionThrown = true; }
+
+            Assert.IsTrue(exceptionThrown);
+        }
+
+        [TestMethod]
+        public void testTemperatureUnsupportedOperation_Subtract_Throws()
+        {
+            var first = new Quantity<TemperatureUnit>(100.0, TemperatureUnit.CELSIUS);
+            bool exceptionThrown = false;
+
+            try { _ = first.Subtract(new Quantity<TemperatureUnit>(50.0, TemperatureUnit.CELSIUS)); }
+            catch (UnsupportedOperationException) { exceptionThrown = true; }
+
+            Assert.IsTrue(exceptionThrown);
+        }
+
+        [TestMethod]
+        public void testTemperatureUnsupportedOperation_Divide_Throws()
+        {
+            var first = new Quantity<TemperatureUnit>(100.0, TemperatureUnit.CELSIUS);
+            bool exceptionThrown = false;
+
+            try { _ = first.Divide(new Quantity<TemperatureUnit>(50.0, TemperatureUnit.CELSIUS)); }
+            catch (UnsupportedOperationException) { exceptionThrown = true; }
+
+            Assert.IsTrue(exceptionThrown);
+        }
+
+        [TestMethod]
+        public void testTemperatureUnsupportedOperation_Message_IsClear()
+        {
+            var first = new Quantity<TemperatureUnit>(100.0, TemperatureUnit.CELSIUS);
+            string message = string.Empty;
+
+            try
+            {
+                _ = first.Divide(new Quantity<TemperatureUnit>(50.0, TemperatureUnit.CELSIUS));
+            }
+            catch (UnsupportedOperationException ex)
+            {
+                message = ex.Message;
+            }
+
+            Assert.Contains(message, "Temperature does not support divide operation.");
+        }
+    }
 }

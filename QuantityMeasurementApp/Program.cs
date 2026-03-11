@@ -2,8 +2,28 @@
 
 namespace QuantityMeasurementApp
 {
+    public delegate bool SupportsArithmetic();
+
+    public sealed class UnsupportedOperationException : InvalidOperationException
+    {
+        public UnsupportedOperationException(string message) : base(message)
+        {
+        }
+    }
+
     public interface IMeasurable
     {
+        SupportsArithmetic SupportsArithmeticCheck => () => true;
+
+        bool SupportsArithmetic()
+        {
+            return SupportsArithmeticCheck();
+        }
+
+        void ValidateOperationSupport(string operation)
+        {
+            // Default behavior: arithmetic is allowed for measurable categories.
+        }
     }
 
     public enum LengthUnit
@@ -24,6 +44,38 @@ namespace QuantityMeasurementApp
     {
         LITRE,
         MILLILITRE
+    }
+
+    public enum TemperatureUnit
+    {
+        CELSIUS,
+        FAHRENHEIT,
+        KELVIN
+    }
+
+    internal sealed class DefaultMeasurable : IMeasurable
+    {
+        public static readonly DefaultMeasurable Instance = new DefaultMeasurable();
+
+        private DefaultMeasurable()
+        {
+        }
+    }
+
+    internal sealed class TemperatureMeasurable : IMeasurable
+    {
+        public static readonly TemperatureMeasurable Instance = new TemperatureMeasurable();
+
+        private TemperatureMeasurable()
+        {
+        }
+
+        public SupportsArithmetic SupportsArithmeticCheck => () => false;
+
+        public void ValidateOperationSupport(string operation)
+        {
+            throw new UnsupportedOperationException($"Temperature does not support {operation.ToLowerInvariant()} operation.");
+        }
     }
 
     public sealed class Quantity<U> where U : struct, Enum
@@ -83,13 +135,13 @@ namespace QuantityMeasurementApp
 
         public double Divide(Quantity<U> other)
         {
-            ValidateArithmeticOperands(other, Unit, targetUnitRequired: false);
+            ValidateArithmeticOperands(other, Unit, ArithmeticOperation.DIVIDE, targetUnitRequired: false);
             return PerformBaseArithmetic(other, ArithmeticOperation.DIVIDE);
         }
 
         private Quantity<U> PerformQuantityArithmetic(Quantity<U> other, U targetUnit, ArithmeticOperation operation)
         {
-            ValidateArithmeticOperands(other, targetUnit, targetUnitRequired: true);
+            ValidateArithmeticOperands(other, targetUnit, operation, targetUnitRequired: true);
             double resultInBase = PerformBaseArithmetic(other, operation);
             double resultInTarget = UnitConverter.FromBase(resultInBase, targetUnit);
             return new Quantity<U>(RoundToTwo(resultInTarget), targetUnit);
@@ -140,7 +192,7 @@ namespace QuantityMeasurementApp
         }
 
         // UC13: Centralized validation for all arithmetic operations
-        private void ValidateArithmeticOperands(Quantity<U>? other, U targetUnit, bool targetUnitRequired)
+        private void ValidateArithmeticOperands(Quantity<U>? other, U targetUnit, ArithmeticOperation operation, bool targetUnitRequired)
         {
             if (other is null)
             {
@@ -161,6 +213,22 @@ namespace QuantityMeasurementApp
             {
                 ValidateEnumUnit(targetUnit, nameof(targetUnit));
             }
+
+            IMeasurable thisMeasurable = ResolveMeasurable(Unit);
+            IMeasurable otherMeasurable = ResolveMeasurable(other.Unit);
+
+            thisMeasurable.ValidateOperationSupport(operation.ToString());
+            otherMeasurable.ValidateOperationSupport(operation.ToString());
+        }
+
+        private static IMeasurable ResolveMeasurable(U unit)
+        {
+            if (typeof(U) == typeof(TemperatureUnit))
+            {
+                return TemperatureMeasurable.Instance;
+            }
+
+            return DefaultMeasurable.Instance;
         }
 
         // UC13: Centralized arithmetic operation execution
@@ -245,6 +313,18 @@ namespace QuantityMeasurementApp
                 };
             }
 
+            if (typeof(U) == typeof(TemperatureUnit))
+            {
+                var temperatureUnit = (TemperatureUnit)(object)unit;
+                return temperatureUnit switch
+                {
+                    TemperatureUnit.CELSIUS => value,
+                    TemperatureUnit.FAHRENHEIT => (value - 32.0) * 5.0 / 9.0,
+                    TemperatureUnit.KELVIN => value - 273.15,
+                    _ => throw new ArgumentException("Unsupported temperature unit.")
+                };
+            }
+
             throw new ArgumentException($"Unsupported unit category: {typeof(U).Name}");
         }
 
@@ -285,6 +365,18 @@ namespace QuantityMeasurementApp
                 };
             }
 
+            if (typeof(U) == typeof(TemperatureUnit))
+            {
+                var temperatureUnit = (TemperatureUnit)(object)unit;
+                return temperatureUnit switch
+                {
+                    TemperatureUnit.CELSIUS => value,
+                    TemperatureUnit.FAHRENHEIT => (value * 9.0 / 5.0) + 32.0,
+                    TemperatureUnit.KELVIN => value + 273.15,
+                    _ => throw new ArgumentException("Unsupported temperature unit.")
+                };
+            }
+
             throw new ArgumentException($"Unsupported unit category: {typeof(U).Name}");
         }
     }
@@ -298,6 +390,8 @@ namespace QuantityMeasurementApp
             DemonstrateSubtraction();
             Console.WriteLine();
             DemonstrateDivision();
+            Console.WriteLine();
+            DemonstrateTemperature();
         }
 
         private static void DemonstrateAddition()
@@ -352,6 +446,28 @@ namespace QuantityMeasurementApp
             Console.WriteLine($"24 INCH / 2 FEET = {lengthRatio}");
             Console.WriteLine($"2000 GRAM / 1 KILOGRAM = {weightRatio}");
             Console.WriteLine($"5 LITRE / 10 LITRE = {volumeRatio}");
+        }
+
+        private static void DemonstrateTemperature()
+        {
+            Console.WriteLine("UC14 Temperature Examples:");
+
+            var freezingC = new Quantity<TemperatureUnit>(0.0, TemperatureUnit.CELSIUS);
+            var freezingF = new Quantity<TemperatureUnit>(32.0, TemperatureUnit.FAHRENHEIT);
+            var boilingC = new Quantity<TemperatureUnit>(100.0, TemperatureUnit.CELSIUS);
+
+            Console.WriteLine($"0 C equals 32 F: {freezingC.Equals(freezingF)}");
+            Console.WriteLine($"100 C to Fahrenheit: {boilingC.ConvertTo(TemperatureUnit.FAHRENHEIT)}");
+            Console.WriteLine($"273.15 K to Celsius: {new Quantity<TemperatureUnit>(273.15, TemperatureUnit.KELVIN).ConvertTo(TemperatureUnit.CELSIUS)}");
+
+            try
+            {
+                _ = boilingC.Add(new Quantity<TemperatureUnit>(50.0, TemperatureUnit.CELSIUS));
+            }
+            catch (UnsupportedOperationException ex)
+            {
+                Console.WriteLine($"Unsupported operation: {ex.Message}");
+            }
         }
     }
 }
