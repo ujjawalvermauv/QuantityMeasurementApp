@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{9CE37E94
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuantityMeasurementApp.Tests", "tests\QuantityMeasurementApp.Tests\QuantityMeasurementApp.Tests.csproj", "{9D177D46-A94F-4DDB-B37F-57ED1A4B795C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuantityMeasurementApp.Api", "src\QuantityMeasurementApp.Api\QuantityMeasurementApp.Api.csproj", "{5E4F84C7-5B40-4C65-8525-19944FE39FE1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,9 +30,14 @@ Global
 		{9D177D46-A94F-4DDB-B37F-57ED1A4B795C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9D177D46-A94F-4DDB-B37F-57ED1A4B795C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9D177D46-A94F-4DDB-B37F-57ED1A4B795C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5E4F84C7-5B40-4C65-8525-19944FE39FE1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5E4F84C7-5B40-4C65-8525-19944FE39FE1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5E4F84C7-5B40-4C65-8525-19944FE39FE1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5E4F84C7-5B40-4C65-8525-19944FE39FE1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{377146DF-84CC-448D-B35F-EB43C4229609} = {9AA6DD15-819E-4C04-94F7-DFC6EDE24C4A}
 		{9D177D46-A94F-4DDB-B37F-57ED1A4B795C} = {9CE37E94-5B37-47C1-921C-DE144105E4DD}
+		{5E4F84C7-5B40-4C65-8525-19944FE39FE1} = {9AA6DD15-819E-4C04-94F7-DFC6EDE24C4A}
 	EndGlobalSection
 EndGlobal
