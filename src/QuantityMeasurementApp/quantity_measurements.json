@@ -1,0 +1,23 @@
+[
+  {
+    "Operand1": {
+      "Value": 25,
+      "UnitName": "FEET",
+      "MeasurementType": "Length"
+    },
+    "Operand2": {
+      "Value": 125,
+      "UnitName": "INCHES",
+      "MeasurementType": "Length"
+    },
+    "Operation": "ADD",
+    "Result": {
+      "Value": 35.42,
+      "UnitName": "FEET",
+      "MeasurementType": "Length"
+    },
+    "ErrorMessage": null,
+    "HasError": false,
+    "Timestamp": "2026-03-22T03:01:18.3974634+05:30"
+  }
+]
