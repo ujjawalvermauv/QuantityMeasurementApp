@@ -1,32 +1,26 @@
-﻿using System;
-using QuantityMeasurementApp.Startup;
-using QuantityMeasurementApp.UI;
+using QuantityMeasurementApp.QuantityMeasurementBusiness.Services;
+using QuantityMeasurementApp.QuantityMeasurementRepo.Implementations;
+using QuantityMeasurementApp.QuantityMeasurementUI;
+using QuantityMeasurementApp.interfaces;
+using ControllerType = QuantityMeasurementApp.QuantityMeasurementController.QuantityMeasurementController;
 
 namespace QuantityMeasurementApp
 {
     /// <summary>
-    /// Console application entry point.
+    /// Entry point. Wires dependencies and starts the console menu.
     /// </summary>
     internal class Program
     {
-        /// <summary>
-        /// Main application entry point.
-        /// </summary>
-        private static void Main()
+        private static void Main(string[] args)
         {
-            try
-            {
-                var factory = new ServiceFactory();
-                var service = factory.CreateService();
-                var repository = factory.CreateRepository();
+            string connectionString ="Server=localhost\\SQLEXPRESS;Database=QuantityMeasurementDB;Integrated Security=True;TrustServerCertificate=True;";
 
-                IConsoleMenu menuApp = new ConsoleMenu(service, repository);
-                menuApp.Run();
-            }
-            catch (Exception exception)
-            {
-                Console.WriteLine($"An error occurred: {exception.Message}");
-            }
+            var repository = new QuantityMeasurementSqlRepository(connectionString);
+            var service = new QuantityMeasurementServiceImpl(repository);
+            var controller = new ControllerType(service);
+            IApplicationUI applicationUI = new Menu(controller);
+
+            applicationUI.Run();
         }
     }
 }

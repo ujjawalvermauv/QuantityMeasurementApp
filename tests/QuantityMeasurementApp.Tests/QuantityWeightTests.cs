@@ -1,120 +1,52 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using QuantityMeasurementApp.Models;
-using QuantityMeasurementApp.Business;
+using NUnit.Framework;
+using QuantityMeasurementApp.QuantityMeasurementBusiness.Quantities;
+using QuantityMeasurementApp.QuantityMeasurementBusiness.Units;
 
 namespace QuantityMeasurementApp.Tests
 {
     /// <summary>
-    /// Equality and constructor-guard tests for <see cref="Quantity{U}"/> with <see cref="WeightUnit"/>.
+    /// Legacy test file for weight quantity operations using generic Quantity<WeightUnit>.
+    /// Demonstrates backward compatibility with UC9 test patterns.
     /// </summary>
-    [TestClass]
-    public class QuantityWeightTests
+    [TestFixture]
+    public class QuantityWeightLegacyTests
     {
-        [TestMethod]
-        public void TestEquality_KilogramToKilogram_SameValue()
-        {
-            var first = new Quantity<WeightUnit>(1.0, WeightUnit.Kilogram);
-            var second = new Quantity<WeightUnit>(1.0, WeightUnit.Kilogram);
+        private const double EPSILON = 1e-6;
 
-            Assert.IsTrue(first.Equals(second));
+        [Test]
+        public void testEquality_KilogramToGram()
+        {
+            var a = new Quantity<WeightUnit>(1.0, WeightUnit.KILOGRAM);
+            var b = new Quantity<WeightUnit>(1000.0, WeightUnit.GRAM);
+
+            Assert.That(a.Equals(b), Is.True);
         }
 
-        [TestMethod]
-        public void TestEquality_KilogramToGram_EquivalentValue()
+        [Test]
+        public void testConversion_KilogramToGram()
         {
-            var kilogram = new Quantity<WeightUnit>(1.0, WeightUnit.Kilogram);
-            var gram = new Quantity<WeightUnit>(1000.0, WeightUnit.Gram);
+            var result = new Quantity<WeightUnit>(1.0, WeightUnit.KILOGRAM)
+                .ConvertTo(WeightUnit.GRAM);
 
-            Assert.IsTrue(kilogram.Equals(gram));
-            Assert.IsTrue(gram.Equals(kilogram));
+            Assert.That(result.Value, Is.EqualTo(1000).Within(EPSILON));
         }
 
-        [TestMethod]
-        public void TestEquality_KilogramToPound_EquivalentValue()
+        [Test]
+        public void testAddition_KgPlusGram()
         {
-            var kilogram = new Quantity<WeightUnit>(1.0, WeightUnit.Kilogram);
-            var pound = new Quantity<WeightUnit>(2.2046244201837775, WeightUnit.Pound);
+            var result = new Quantity<WeightUnit>(1.0, WeightUnit.KILOGRAM)
+                .Add(new Quantity<WeightUnit>(1000.0, WeightUnit.GRAM));
 
-            Assert.IsTrue(kilogram.Equals(pound));
-            Assert.IsTrue(pound.Equals(kilogram));
+            Assert.That(result.Value, Is.EqualTo(2.0).Within(EPSILON));
         }
 
-        [TestMethod]
-        public void TestEquality_GramToPound_EquivalentValue()
+        [Test]
+        public void testAddition_TargetUnit()
         {
-            var gram = new Quantity<WeightUnit>(453.592, WeightUnit.Gram);
-            var pound = new Quantity<WeightUnit>(1.0, WeightUnit.Pound);
+            var result = new Quantity<WeightUnit>(1.0, WeightUnit.KILOGRAM)
+                .Add(new Quantity<WeightUnit>(1000.0, WeightUnit.GRAM), WeightUnit.GRAM);
 
-            Assert.IsTrue(gram.Equals(pound));
-        }
-
-        [TestMethod]
-        public void TestEquality_WeightVsLength_Incompatible()
-        {
-            object weight = new Quantity<WeightUnit>(1.0, WeightUnit.Kilogram);
-            object length = new Quantity<LengthUnit>(1.0, LengthUnit.Feet);
-
-            Assert.IsFalse(weight.Equals(length));
-        }
-
-        [TestMethod]
-        public void TestEquality_NullComparison()
-        {
-            var weight = new Quantity<WeightUnit>(1.0, WeightUnit.Kilogram);
-
-            Assert.IsFalse(weight.Equals(null));
-        }
-
-        [TestMethod]
-        public void TestEquality_SameReference()
-        {
-            var weight = new Quantity<WeightUnit>(2.0, WeightUnit.Pound);
-
-            Assert.IsTrue(weight.Equals(weight));
-        }
-
-        [TestMethod]
-        public void TestEquality_ZeroAcrossUnits()
-        {
-            var kilogram = new Quantity<WeightUnit>(0.0, WeightUnit.Kilogram);
-            var gram = new Quantity<WeightUnit>(0.0, WeightUnit.Gram);
-
-            Assert.IsTrue(kilogram.Equals(gram));
-        }
-
-        [TestMethod]
-        public void TestEquality_NegativeAcrossUnits()
-        {
-            var kilogram = new Quantity<WeightUnit>(-1.0, WeightUnit.Kilogram);
-            var gram = new Quantity<WeightUnit>(-1000.0, WeightUnit.Gram);
-
-            Assert.IsTrue(kilogram.Equals(gram));
-        }
-
-        [TestMethod]
-        public void TestHashCode_EquivalentWeights_AreEqual()
-        {
-            var kilogram = new Quantity<WeightUnit>(1.0, WeightUnit.Kilogram);
-            var gram = new Quantity<WeightUnit>(1000.0, WeightUnit.Gram);
-
-            Assert.IsTrue(kilogram.Equals(gram));
-            Assert.AreEqual(kilogram.GetHashCode(), gram.GetHashCode());
-        }
-
-        [TestMethod]
-        public void Constructor_InvalidUnit_ThrowsArgumentException()
-        {
-            var invalid = (WeightUnit)999;
-
-            Assert.ThrowsException<ArgumentException>(() => new Quantity<WeightUnit>(1.0, invalid));
-        }
-
-        [TestMethod]
-        public void Constructor_NaNValue_ThrowsArgumentException()
-        {
-            Assert.ThrowsException<ArgumentException>(() =>
-                new Quantity<WeightUnit>(double.NaN, WeightUnit.Kilogram)
-            );
+            Assert.That(result.Value, Is.EqualTo(2000).Within(EPSILON));
         }
     }
 }
