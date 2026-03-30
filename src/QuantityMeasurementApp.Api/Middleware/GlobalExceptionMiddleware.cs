@@ -31,6 +31,11 @@ public class GlobalExceptionMiddleware
             _logger.LogWarning(ex, "Invalid argument for quantity API request.");
             await WriteErrorAsync(context, StatusCodes.Status400BadRequest, "Bad Request", ex.Message);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access attempt.");
+            await WriteErrorAsync(context, StatusCodes.Status401Unauthorized, "Unauthorized", ex.Message);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception in quantity API.");

@@ -1,7 +1,12 @@
 using System.Text.Json.Serialization;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using QuantityMeasurementApp.Api.Messaging;
 using QuantityMeasurementApp.Api.Middleware;
+using QuantityMeasurementApp.Api.Security;
 using QuantityMeasurementApp.Business;
 using QuantityMeasurementApp.Repository;
 
@@ -37,13 +42,71 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    // Swagger bearer definition allows login token testing directly from UI.
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter token as: Bearer {token}"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 builder.Services.AddHealthChecks();
 
 builder.Services.Configure<RabbitMqOptions>(
     builder.Configuration.GetSection(RabbitMqOptions.SectionName)
 );
+builder.Services.Configure<JwtOptions>(
+    builder.Configuration.GetSection(JwtOptions.SectionName)
+);
+
+var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey));
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateIssuerSigningKey = true,
+        ValidateLifetime = true,
+        ValidIssuer = jwtOptions.Issuer,
+        ValidAudience = jwtOptions.Audience,
+        IssuerSigningKey = signingKey,
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization();
+
 builder.Services.AddSingleton<IOperationEventPublisher, RabbitMqOperationEventPublisher>();
+builder.Services.AddSingleton<IPasswordHashingService, Pbkdf2PasswordHashingService>();
+builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
 builder.Services.AddScoped<IQuantityMeasurementService, QuantityMeasurementServiceImpl>();
 builder.Services.AddSingleton<IQuantityMeasurementRepository>(serviceProvider =>
@@ -72,6 +135,30 @@ builder.Services.AddSingleton<IQuantityMeasurementRepository>(serviceProvider =>
     }
 });
 
+builder.Services.AddSingleton<IUserAuthRepository>(serviceProvider =>
+{
+    var logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("UserRepositoryBootstrap");
+    var connectionString =
+        builder.Configuration.GetConnectionString("QuantityMeasurementDb")
+        ?? builder.Configuration["Database:ConnectionString"];
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException("User authentication requires a SQL connection string.");
+    }
+
+    try
+    {
+        // Repository creates Users table automatically when missing.
+        return new UserAuthDatabaseRepository(connectionString);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Could not initialize user repository.");
+        throw;
+    }
+});
+
 var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
@@ -83,6 +170,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 

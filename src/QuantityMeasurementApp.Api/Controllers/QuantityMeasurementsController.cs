@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using QuantityMeasurementApp.Api.Contracts;
 using QuantityMeasurementApp.Api.Messaging;
 using QuantityMeasurementApp.Business;
@@ -9,6 +10,7 @@ using QuantityMeasurementApp.Repository;
 namespace QuantityMeasurementApp.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/v1/quantities")]
 public class QuantityMeasurementsController : ControllerBase
 {
