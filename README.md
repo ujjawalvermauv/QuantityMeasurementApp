@@ -11,6 +11,58 @@ Each use case expands functionality in a controlled and maintainable way.
 
 ---
 
+## UC17 Migration for ASP.NET + RabbitMQ
+
+This repository now includes an ASP.NET Core migration path using the existing .NET architecture:
+
+- API host: `src/QuantityMeasurementApp.Api`
+- Business layer reuse: `src/QuantityMeasurementApp.Business`
+- Persistence reuse: `src/QuantityMeasurementApp.Repository`
+- DTO/entities reuse: `src/QuantityMeasurementApp.Models`
+
+### What was added
+
+- REST controller endpoints at `/api/v1/quantities/*`.
+- Centralized exception handling middleware returning structured JSON errors.
+- Request validation with data annotations.
+- Swagger/OpenAPI support (`/swagger`).
+- Health endpoint (`/health`).
+- RabbitMQ publisher for operation events (best-effort; API continues if broker is unavailable).
+- SQL repository wiring with automatic fallback to in-memory cache.
+
+### API operations
+
+- `POST /api/v1/quantities/compare`
+- `POST /api/v1/quantities/convert`
+- `POST /api/v1/quantities/add`
+- `POST /api/v1/quantities/subtract`
+- `POST /api/v1/quantities/divide`
+- `GET /api/v1/quantities/history`
+- `GET /api/v1/quantities/history/operation/{operation}`
+- `GET /api/v1/quantities/history/type/{category}`
+- `GET /api/v1/quantities/history/errored`
+- `GET /api/v1/quantities/count/{operation}`
+
+### Configuration keys
+
+- SQL: `ConnectionStrings:QuantityMeasurementDb`
+- RabbitMQ: `RabbitMq:HostName`, `RabbitMq:Port`, `RabbitMq:UserName`, `RabbitMq:Password`, `RabbitMq:Exchange`, `RabbitMq:RoutingKey`
+
+### Commands
+
+- Build API:
+  - `dotnet build src/QuantityMeasurementApp.Api/QuantityMeasurementApp.Api.csproj`
+- Run API:
+  - `dotnet run --project src/QuantityMeasurementApp.Api/QuantityMeasurementApp.Api.csproj`
+- Run tests:
+  - `dotnet test tests/QuantityMeasurementApp.Tests/QuantityMeasurementApp.Tests.csproj`
+
+### RabbitMQ quick start (optional)
+
+- `docker run -d --name qma-rabbit -p 5672:5672 -p 15672:15672 rabbitmq:3-management`
+- RabbitMQ UI: `http://localhost:15672` (guest/guest)
+
+---
 
 ## 🚀 Use Case 2 (UC2) – Feet and Inches Measurement Equality
 
@@ -19,6 +71,7 @@ Each use case expands functionality in a controlled and maintainable way.
 UC2 extends UC1 by introducing equality comparison for Inches measurement alongside Feet measurement.
 
 ⚠ Important:
+
 - Feet and Inches are treated as separate entities.
 - No cross-unit comparison (e.g., 1 ft ≠ 12 inches in this use case).
 - Only same-unit equality comparison is supported.
@@ -233,9 +286,9 @@ UC8 refactors unit conversion ownership by keeping `LengthUnit` as a standalone 
 ## ✅ Features Implemented in UC8
 
 - `LengthUnit` conversion responsibilities:
-   - `GetConversionFactor()`
-   - `ConvertToBaseUnit(double value)`
-   - `ConvertFromBaseUnit(double baseValue)`
+  - `GetConversionFactor()`
+  - `ConvertToBaseUnit(double value)`
+  - `ConvertFromBaseUnit(double baseValue)`
 - `QuantityLength` now delegates conversions to `LengthUnit` conversion methods
 - Existing equality, conversion, and addition APIs remain unchanged
 - Dedicated UC8 test suite added in `LengthUnitTests.cs`
@@ -269,7 +322,6 @@ UC8 refactors unit conversion ownership by keeping `LengthUnit` as a standalone 
 
 ---
 
-
 ## 🚀 Use Case 9 (UC9) – Weight Unit Support
 
 ### Description
@@ -283,10 +335,10 @@ This proves the conversion/addition/equality flow can work beyond length.
 - Weight conversion support via service APIs
 - Weight addition support (same-unit and cross-unit)
 - Weight-focused tests:
-   - `WeightUnitTests.cs`
-   - `WeightUnitConversionTests.cs`
-   - `WeightUnitAdditionTests.cs`
-   - `QuantityWeightTests.cs`
+  - `WeightUnitTests.cs`
+  - `WeightUnitConversionTests.cs`
+  - `WeightUnitAdditionTests.cs`
+  - `QuantityWeightTests.cs`
 
 ---
 
@@ -307,9 +359,9 @@ are adapted to `IMeasurable` using extension-based wrappers (`AsMeasurable()`).
 - Generic immutable `Quantity<U>` replaces category-specific quantity models
 - Common conversion contract through `IMeasurable`
 - Unified generic service operations:
-   - `AreEqual<U>(...)`
-   - `Convert<U>(...)`
-   - `Add<U>(...)`
+  - `AreEqual<U>(...)`
+  - `Convert<U>(...)`
+  - `Add<U>(...)`
 - Runtime category-safety check in equality (length vs weight returns `false`)
 - Backward compatibility retained for legacy `Feet` / `Inches` UCs
 
@@ -333,13 +385,13 @@ It validates that the generic architecture from UC10 scales without changing cor
 
 - New `VolumeUnit` enum with base unit **Litre**
 - Supported units:
-   - `Litre` → `1.0`
-   - `Millilitre` → `0.001`
-   - `Gallon` → `3.78541`
+  - `Litre` → `1.0`
+  - `Millilitre` → `0.001`
+  - `Gallon` → `3.78541`
 - Volume conversion support via existing generic APIs
 - Volume addition support with:
-   - implicit target unit (first operand unit)
-   - explicit target unit
+  - implicit target unit (first operand unit)
+  - explicit target unit
 - Cross-category isolation retained (`Volume` vs `Length`/`Weight` returns incompatible equality)
 
 ### 📌 UC11 Behavior Notes
@@ -351,74 +403,74 @@ It validates that the generic architecture from UC10 scales without changing cor
 ### 🧪 UC11 Example Operations
 
 - Equality:
-   - `Quantity(1.0, Litre)` == `Quantity(1000.0, Millilitre)` → `true`
-   - `Quantity(1.0, Gallon)` == `Quantity(3.78541, Litre)` → `true`
+  - `Quantity(1.0, Litre)` == `Quantity(1000.0, Millilitre)` → `true`
+  - `Quantity(1.0, Gallon)` == `Quantity(3.78541, Litre)` → `true`
 
 - Conversion:
-   - `Quantity(1.0, Litre).ConvertTo(Millilitre)` → `Quantity(1000.0, Millilitre)`
-   - `Quantity(2.0, Gallon).ConvertTo(Litre)` → `Quantity(7.57, Litre)`
-   - `Quantity(500.0, Millilitre).ConvertTo(Gallon)` → `Quantity(0.13, Gallon)`
+  - `Quantity(1.0, Litre).ConvertTo(Millilitre)` → `Quantity(1000.0, Millilitre)`
+  - `Quantity(2.0, Gallon).ConvertTo(Litre)` → `Quantity(7.57, Litre)`
+  - `Quantity(500.0, Millilitre).ConvertTo(Gallon)` → `Quantity(0.13, Gallon)`
 
 - Addition:
-   - `Quantity(1.0, Litre).Add(Quantity(1000.0, Millilitre))` → `Quantity(2.0, Litre)`
-   - `Quantity(1.0, Litre).Add(Quantity(1000.0, Millilitre), Millilitre)` → `Quantity(2000.0, Millilitre)`
-   - `Quantity(500.0, Millilitre).Add(Quantity(1.0, Litre), Gallon)` → `Quantity(0.4, Gallon)`
+  - `Quantity(1.0, Litre).Add(Quantity(1000.0, Millilitre))` → `Quantity(2.0, Litre)`
+  - `Quantity(1.0, Litre).Add(Quantity(1000.0, Millilitre), Millilitre)` → `Quantity(2000.0, Millilitre)`
+  - `Quantity(500.0, Millilitre).Add(Quantity(1.0, Litre), Gallon)` → `Quantity(0.4, Gallon)`
 
 ---
 
-   ## 🚀 Use Case 12 (UC12) – Subtraction and Division Operations
+## 🚀 Use Case 12 (UC12) – Subtraction and Division Operations
 
-   ### Description
+### Description
 
-   UC12 extends the generic arithmetic model by adding:
+UC12 extends the generic arithmetic model by adding:
 
-   - **Subtraction** between same-category quantities (`Quantity<U>`) with:
-      - implicit target unit (first operand unit)
-      - explicit target unit overload
-   - **Division** between same-category quantities returning a **dimensionless scalar** (`double`)
+- **Subtraction** between same-category quantities (`Quantity<U>`) with:
+  - implicit target unit (first operand unit)
+  - explicit target unit overload
+- **Division** between same-category quantities returning a **dimensionless scalar** (`double`)
 
-   Both operations reuse the UC10–UC11 conversion pipeline (convert to base unit first), preserve immutability,
-   and keep category safety through generic typing.
+Both operations reuse the UC10–UC11 conversion pipeline (convert to base unit first), preserve immutability,
+and keep category safety through generic typing.
 
-   ### ✅ Features Implemented in UC12
+### ✅ Features Implemented in UC12
 
-   - `Quantity<U>.Subtract(Quantity<U> other)`
-   - `Quantity<U>.Subtract(Quantity<U> other, U targetUnit)`
-   - `Quantity<U>.Divide(Quantity<U> other)`
-   - Service facade overloads for subtraction and division in `QuantityMeasurementService`
-   - Program demonstrations for subtraction and division across:
-      - Length
-      - Weight
-      - Volume
-   - New UC12 unit test coverage for:
-      - same-unit and cross-unit subtraction/division
-      - explicit target unit subtraction
-      - negative and zero subtraction results
-      - non-commutativity checks
-      - division-by-zero handling
-      - null argument handling
+- `Quantity<U>.Subtract(Quantity<U> other)`
+- `Quantity<U>.Subtract(Quantity<U> other, U targetUnit)`
+- `Quantity<U>.Divide(Quantity<U> other)`
+- Service facade overloads for subtraction and division in `QuantityMeasurementService`
+- Program demonstrations for subtraction and division across:
+  - Length
+  - Weight
+  - Volume
+- New UC12 unit test coverage for:
+  - same-unit and cross-unit subtraction/division
+  - explicit target unit subtraction
+  - negative and zero subtraction results
+  - non-commutativity checks
+  - division-by-zero handling
+  - null argument handling
 
-   ### 📌 UC12 Behavior Notes
+### 📌 UC12 Behavior Notes
 
-   - Subtraction result is rounded to **2 decimal places** and returned as a new `Quantity<U>`.
-   - Division returns raw ratio as `double` (no unit).
-   - Division by zero throws `ArithmeticException`.
-   - Cross-category arithmetic is prevented by compile-time generic constraints and runtime method signatures.
+- Subtraction result is rounded to **2 decimal places** and returned as a new `Quantity<U>`.
+- Division returns raw ratio as `double` (no unit).
+- Division by zero throws `ArithmeticException`.
+- Cross-category arithmetic is prevented by compile-time generic constraints and runtime method signatures.
 
-   ### 🧪 UC12 Example Operations
+### 🧪 UC12 Example Operations
 
-   - Subtraction (implicit target):
-      - `Quantity(10.0, Feet).Subtract(Quantity(6.0, Inches))` → `Quantity(9.5, Feet)`
-      - `Quantity(10.0, Kilogram).Subtract(Quantity(5000.0, Gram))` → `Quantity(5.0, Kilogram)`
-   - Subtraction (explicit target):
-      - `Quantity(10.0, Feet).Subtract(Quantity(6.0, Inches), Inches)` → `Quantity(114.0, Inches)`
-      - `Quantity(5.0, Litre).Subtract(Quantity(2.0, Litre), Millilitre)` → `Quantity(3000.0, Millilitre)`
-   - Division:
-      - `Quantity(24.0, Inches).Divide(Quantity(2.0, Feet))` → `1.0`
-      - `Quantity(2000.0, Gram).Divide(Quantity(1.0, Kilogram))` → `2.0`
-      - `Quantity(5.0, Litre).Divide(Quantity(10.0, Litre))` → `0.5`
+- Subtraction (implicit target):
+  - `Quantity(10.0, Feet).Subtract(Quantity(6.0, Inches))` → `Quantity(9.5, Feet)`
+  - `Quantity(10.0, Kilogram).Subtract(Quantity(5000.0, Gram))` → `Quantity(5.0, Kilogram)`
+- Subtraction (explicit target):
+  - `Quantity(10.0, Feet).Subtract(Quantity(6.0, Inches), Inches)` → `Quantity(114.0, Inches)`
+  - `Quantity(5.0, Litre).Subtract(Quantity(2.0, Litre), Millilitre)` → `Quantity(3000.0, Millilitre)`
+- Division:
+  - `Quantity(24.0, Inches).Divide(Quantity(2.0, Feet))` → `1.0`
+  - `Quantity(2000.0, Gram).Divide(Quantity(1.0, Kilogram))` → `2.0`
+  - `Quantity(5.0, Litre).Divide(Quantity(10.0, Litre))` → `0.5`
 
-   ---
+---
 
 ## 🚀 Use Case 13 (UC13) – Centralized Arithmetic Logic (DRY Refactor)
 
@@ -437,10 +489,10 @@ for validation, base-unit conversion, operation dispatch, and result projection.
 
 - Private `ArithmeticOperation` enum for operation dispatch (`Add`, `Subtract`, `Divide`)
 - Centralized validation helper:
-   - null operand validation
-   - category/type compatibility guard
-   - finite numeric validation
-   - target unit validation (for add/subtract)
+  - null operand validation
+  - category/type compatibility guard
+  - finite numeric validation
+  - target unit validation (for add/subtract)
 - Centralized base arithmetic helper to compute add/subtract/divide in base-unit space
 - Shared conversion helper for add/subtract result projection to target unit
 - Dedicated divide-by-zero guard reused by division flow
@@ -456,9 +508,9 @@ for validation, base-unit conversion, operation dispatch, and result projection.
 
 - Existing UC12 tests continue to pass without API-level changes.
 - Additional UC13 regression tests in `QuantityUc13RefactorTests.cs` verify:
-   - unchanged arithmetic results
-   - consistent null-operand handling across operations
-   - division-by-zero behavior remains fail-fast
+  - unchanged arithmetic results
+  - consistent null-operand handling across operations
+  - division-by-zero behavior remains fail-fast
 
 ---
 
@@ -473,8 +525,8 @@ Unlike length, weight, and volume, absolute temperatures do not support arithmet
 
 - New `TemperatureUnit` enum and measurable adapter with non-linear conversion formulas.
 - `IMeasurable` now includes optional operation-support defaults:
-   - `SupportsArithmetic()`
-   - `ValidateOperationSupport(string operation)`
+  - `SupportsArithmetic()`
+  - `ValidateOperationSupport(string operation)`
 - `Quantity<U>` arithmetic flow validates operation support before add/subtract/divide execution.
 - Temperature conversions and equality work through base-unit normalization.
 - Temperature arithmetic (`Add`, `Subtract`, `Divide`) throws `NotSupportedException` with clear messages.
