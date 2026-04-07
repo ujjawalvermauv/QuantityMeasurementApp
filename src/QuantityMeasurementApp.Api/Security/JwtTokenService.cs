@@ -46,7 +46,9 @@ public sealed class JwtTokenService : IJwtTokenService
             Token = new JwtSecurityTokenHandler().WriteToken(token),
             ExpiresAtUtc = expires,
             Email = user.Email,
-            FullName = user.FullName
+            FullName = user.FullName,
+            Message = $"Welcome back, {user.FullName}! You're now signed in.",
+            Success = true
         };
     }
 }

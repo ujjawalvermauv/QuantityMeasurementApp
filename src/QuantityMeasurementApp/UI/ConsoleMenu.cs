@@ -281,7 +281,7 @@ namespace QuantityMeasurementApp.UI
                 var status = entry.IsError ? "ERROR" : "OK";
                 var errorPart = entry.IsError ? $" | {entry.ErrorMessage}" : string.Empty;
                 Console.WriteLine(
-                    $"[{entry.CreatedAt:yyyy-MM-dd HH:mm:ss}] {status} | {entry.Description}{errorPart}"
+                    $"[{entry.CreatedAt:yyyy-MM-dd HH:mm:ss}] {status} | {entry.Type} | {entry.Operation} | {entry.Input} => {entry.Result}{errorPart}"
                 );
             }
         }
