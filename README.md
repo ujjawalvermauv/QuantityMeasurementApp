@@ -11,7 +11,7 @@ Each use case expands functionality in a controlled and maintainable way.
 
 ---
 
-## UC17 Migration for ASP.NET + RabbitMQ
+## UC17 Migration for ASP.NET
 
 This repository now includes an ASP.NET Core migration path using the existing .NET architecture:
 
@@ -27,7 +27,6 @@ This repository now includes an ASP.NET Core migration path using the existing .
 - Request validation with data annotations.
 - Swagger/OpenAPI support (`/swagger`).
 - Health endpoint (`/health`).
-- RabbitMQ publisher for operation events (best-effort; API continues if broker is unavailable).
 - SQL repository wiring with automatic fallback to in-memory cache.
 
 ### API operations
@@ -38,15 +37,10 @@ This repository now includes an ASP.NET Core migration path using the existing .
 - `POST /api/v1/quantities/subtract`
 - `POST /api/v1/quantities/divide`
 - `GET /api/v1/quantities/history`
-- `GET /api/v1/quantities/history/operation/{operation}`
-- `GET /api/v1/quantities/history/type/{category}`
-- `GET /api/v1/quantities/history/errored`
-- `GET /api/v1/quantities/count/{operation}`
 
 ### Configuration keys
 
 - SQL: `ConnectionStrings:QuantityMeasurementDb`
-- RabbitMQ: `RabbitMq:HostName`, `RabbitMq:Port`, `RabbitMq:UserName`, `RabbitMq:Password`, `RabbitMq:Exchange`, `RabbitMq:RoutingKey`
 
 ### Commands
 
@@ -56,11 +50,6 @@ This repository now includes an ASP.NET Core migration path using the existing .
   - `dotnet run --project src/QuantityMeasurementApp.Api/QuantityMeasurementApp.Api.csproj`
 - Run tests:
   - `dotnet test tests/QuantityMeasurementApp.Tests/QuantityMeasurementApp.Tests.csproj`
-
-### RabbitMQ quick start (optional)
-
-- `docker run -d --name qma-rabbit -p 5672:5672 -p 15672:15672 rabbitmq:3-management`
-- RabbitMQ UI: `http://localhost:15672` (guest/guest)
 
 ---
 

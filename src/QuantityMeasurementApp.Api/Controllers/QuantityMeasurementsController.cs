@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Globalization;
 using QuantityMeasurementApp.Api.Contracts;
-using QuantityMeasurementApp.Api.Messaging;
 using QuantityMeasurementApp.Business;
 using QuantityMeasurementApp.Models.DTOs;
 using QuantityMeasurementApp.Models.Entities;
@@ -10,234 +12,287 @@ using QuantityMeasurementApp.Repository;
 namespace QuantityMeasurementApp.Api.Controllers;
 
 [ApiController]
-[Authorize]
 [Route("api/v1/quantities")]
 public class QuantityMeasurementsController : ControllerBase
 {
     private readonly IQuantityMeasurementService _service;
     private readonly IQuantityMeasurementRepository _repository;
-    private readonly IOperationEventPublisher _publisher;
 
     public QuantityMeasurementsController(
         IQuantityMeasurementService service,
-        IQuantityMeasurementRepository repository,
-        IOperationEventPublisher publisher)
+        IQuantityMeasurementRepository repository)
     {
         _service = service;
         _repository = repository;
-        _publisher = publisher;
     }
 
     [HttpPost("compare")]
-    public async Task<ActionResult<OperationResultDto>> Compare([FromBody] BinaryOperationRequestDto request)
+    [AllowAnonymous]
+    public ActionResult<OperationResultDto> Compare([FromBody] BinaryOperationRequestDto request)
     {
+        var userScope = GetCurrentUserScope();
+        var first = ToDomain(request.First);
+        var second = ToDomain(request.Second);
+
         try
         {
-            var first = ToDomain(request.First);
-            var second = ToDomain(request.Second);
             var result = _service.Compare(first, second);
 
             var response = new OperationResultDto
             {
                 Operation = "COMPARE",
+                Description = "Compares two quantities for equality after unit normalization.",
                 First = request.First,
                 Second = request.Second,
                 BooleanResult = result,
-                TimestampUtc = DateTime.UtcNow
+                TimestampUtc = DateTime.UtcNow,
+                Message = result
+                    ? "Comparison completed. The two quantities are equal."
+                    : "Comparison completed. The two quantities are not equal."
             };
 
-            SaveAuditSuccess($"COMPARE|{BuildBinaryDescription(first, second)}|RESULT={result}");
-            await PublishAsync("COMPARE", true, null, first.Category.ToString(), first.Unit);
+            SaveAuditSuccess(
+                userScope,
+                first.Category.ToString(),
+                "Compare",
+                BuildCompareInput(first, second),
+                result.ToString()
+            );
             return Ok(response);
         }
         catch (Exception ex)
         {
-            SaveAuditError($"COMPARE|{BuildBinaryDescription(ToDomain(request.First), ToDomain(request.Second))}", ex.Message);
-            await PublishAsync("COMPARE", false, ex.Message, request.First.Category.ToString(), request.First.Unit);
+            SaveAuditError(
+                userScope,
+                first.Category.ToString(),
+                "Compare",
+                BuildCompareInput(first, second),
+                ex.Message
+            );
             throw;
         }
     }
 
     [HttpPost("convert")]
-    public async Task<ActionResult<OperationResultDto>> Convert([FromBody] ConvertOperationRequestDto request)
+    [AllowAnonymous]
+    public ActionResult<OperationResultDto> Convert([FromBody] ConvertOperationRequestDto request)
     {
+        var userScope = GetCurrentUserScope();
+        var source = ToDomain(request.Source);
+
         try
         {
-            var source = ToDomain(request.Source);
             var result = _service.Convert(source, request.TargetUnit);
 
             var response = new OperationResultDto
             {
                 Operation = "CONVERT",
+                Description = "Converts a quantity value from one unit to another within the same category.",
                 First = request.Source,
                 QuantityResult = result,
-                TimestampUtc = DateTime.UtcNow
+                TimestampUtc = DateTime.UtcNow,
+                Message = $"Conversion completed: {request.Source.Value} {request.Source.Unit} -> {result.Value} {result.Unit}."
             };
 
-            SaveAuditSuccess($"CONVERT|SRC={Describe(source)}|TARGET={request.TargetUnit}|RESULT={Describe(result)}");
-            await PublishAsync("CONVERT", true, null, result.Category.ToString(), result.Unit);
+            SaveAuditSuccess(
+                userScope,
+                source.Category.ToString(),
+                "Convert",
+                BuildConvertInput(source, request.TargetUnit),
+                BuildQuantityResult(result)
+            );
             return Ok(response);
         }
         catch (Exception ex)
         {
-            SaveAuditError($"CONVERT|SRC={Describe(ToDomain(request.Source))}|TARGET={request.TargetUnit}", ex.Message);
-            await PublishAsync("CONVERT", false, ex.Message, request.Source.Category.ToString(), request.Source.Unit);
+            SaveAuditError(
+                userScope,
+                source.Category.ToString(),
+                "Convert",
+                BuildConvertInput(source, request.TargetUnit),
+                ex.Message
+            );
             throw;
         }
     }
 
     [HttpPost("add")]
-    public async Task<ActionResult<OperationResultDto>> Add([FromBody] BinaryOperationRequestDto request)
+    [AllowAnonymous]
+    public ActionResult<OperationResultDto> Add([FromBody] BinaryOperationRequestDto request)
     {
+        var userScope = GetCurrentUserScope();
+        var first = ToDomain(request.First);
+        var second = ToDomain(request.Second);
+
         try
         {
-            var first = ToDomain(request.First);
-            var second = ToDomain(request.Second);
             var result = _service.Add(first, second, request.TargetUnit);
 
             var response = new OperationResultDto
             {
                 Operation = "ADD",
+                Description = "Adds two quantities and returns the result in the requested target unit.",
                 First = request.First,
                 Second = request.Second,
                 QuantityResult = result,
-                TimestampUtc = DateTime.UtcNow
+                TimestampUtc = DateTime.UtcNow,
+                Message = $"Addition completed: {result.Value} {result.Unit}."
             };
 
-            SaveAuditSuccess($"ADD|{BuildBinaryDescription(first, second)}|TARGET={request.TargetUnit}|RESULT={Describe(result)}");
-            await PublishAsync("ADD", true, null, result.Category.ToString(), result.Unit);
+            SaveAuditSuccess(
+                userScope,
+                first.Category.ToString(),
+                "Add",
+                BuildAddInput(first, second),
+                BuildQuantityResult(result)
+            );
             return Ok(response);
         }
         catch (Exception ex)
         {
-            SaveAuditError($"ADD|{BuildBinaryDescription(ToDomain(request.First), ToDomain(request.Second))}", ex.Message);
-            await PublishAsync("ADD", false, ex.Message, request.First.Category.ToString(), request.First.Unit);
+            SaveAuditError(
+                userScope,
+                first.Category.ToString(),
+                "Add",
+                BuildAddInput(first, second),
+                ex.Message
+            );
             throw;
         }
     }
 
     [HttpPost("subtract")]
-    public async Task<ActionResult<OperationResultDto>> Subtract([FromBody] BinaryOperationRequestDto request)
+    [AllowAnonymous]
+    public ActionResult<OperationResultDto> Subtract([FromBody] BinaryOperationRequestDto request)
     {
+        var userScope = GetCurrentUserScope();
+        var first = ToDomain(request.First);
+        var second = ToDomain(request.Second);
+
         try
         {
-            var first = ToDomain(request.First);
-            var second = ToDomain(request.Second);
             var result = _service.Subtract(first, second, request.TargetUnit);
 
             var response = new OperationResultDto
             {
                 Operation = "SUBTRACT",
+                Description = "Subtracts the second quantity from the first and returns the result in target unit.",
                 First = request.First,
                 Second = request.Second,
                 QuantityResult = result,
-                TimestampUtc = DateTime.UtcNow
+                TimestampUtc = DateTime.UtcNow,
+                Message = $"Subtraction completed: {result.Value} {result.Unit}."
             };
 
-            SaveAuditSuccess($"SUBTRACT|{BuildBinaryDescription(first, second)}|TARGET={request.TargetUnit}|RESULT={Describe(result)}");
-            await PublishAsync("SUBTRACT", true, null, result.Category.ToString(), result.Unit);
+            SaveAuditSuccess(
+                userScope,
+                first.Category.ToString(),
+                "Subtract",
+                BuildSubtractInput(first, second),
+                BuildQuantityResult(result)
+            );
             return Ok(response);
         }
         catch (Exception ex)
         {
-            SaveAuditError($"SUBTRACT|{BuildBinaryDescription(ToDomain(request.First), ToDomain(request.Second))}", ex.Message);
-            await PublishAsync("SUBTRACT", false, ex.Message, request.First.Category.ToString(), request.First.Unit);
+            SaveAuditError(
+                userScope,
+                first.Category.ToString(),
+                "Subtract",
+                BuildSubtractInput(first, second),
+                ex.Message
+            );
             throw;
         }
     }
 
     [HttpPost("divide")]
-    public async Task<ActionResult<OperationResultDto>> Divide([FromBody] BinaryOperationRequestDto request)
+    [AllowAnonymous]
+    public ActionResult<OperationResultDto> Divide([FromBody] BinaryOperationRequestDto request)
     {
+        var userScope = GetCurrentUserScope();
+        var first = ToDomain(request.First);
+        var second = ToDomain(request.Second);
+
         try
         {
-            var first = ToDomain(request.First);
-            var second = ToDomain(request.Second);
             var result = _service.Divide(first, second);
 
             var response = new OperationResultDto
             {
                 Operation = "DIVIDE",
+                Description = "Divides the first quantity by the second quantity and returns a scalar value.",
                 First = request.First,
                 Second = request.Second,
                 ScalarResult = result,
-                TimestampUtc = DateTime.UtcNow
+                TimestampUtc = DateTime.UtcNow,
+                Message = $"Division completed. Quotient: {result.ToString(CultureInfo.InvariantCulture)}."
             };
 
-            SaveAuditSuccess($"DIVIDE|{BuildBinaryDescription(first, second)}|RESULT={result}");
-            await PublishAsync("DIVIDE", true, null, first.Category.ToString(), first.Unit);
+            SaveAuditSuccess(
+                userScope,
+                first.Category.ToString(),
+                "Divide",
+                BuildDivideInput(first, second),
+                result.ToString(CultureInfo.InvariantCulture)
+            );
             return Ok(response);
         }
         catch (Exception ex)
         {
-            SaveAuditError($"DIVIDE|{BuildBinaryDescription(ToDomain(request.First), ToDomain(request.Second))}", ex.Message);
-            await PublishAsync("DIVIDE", false, ex.Message, request.First.Category.ToString(), request.First.Unit);
+            SaveAuditError(
+                userScope,
+                first.Category.ToString(),
+                "Divide",
+                BuildDivideInput(first, second),
+                ex.Message
+            );
             throw;
         }
     }
 
     [HttpGet("history")]
-    public ActionResult<IEnumerable<QuantityMeasurementEntity>> GetHistory()
+    [Authorize]
+    public ActionResult<IEnumerable<OperationHistoryDto>> GetHistory()
     {
-        return Ok(_repository.GetAll());
+        var userScope = GetCurrentUserScope();
+        var userHistory = _repository
+            .GetAll()
+            .Where(x => string.Equals(x.UserScope, userScope, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.CreatedAt)
+            .Select(x => new OperationHistoryDto
+            {
+                Id = x.Id,
+                Type = x.Type,
+                Operation = x.Operation,
+                Input = x.Input,
+                Result = x.Result,
+                CreatedAt = x.CreatedAt,
+            });
+
+        return Ok(userHistory);
     }
 
-    [HttpGet("history/operation/{operation}")]
-    public ActionResult<IEnumerable<QuantityMeasurementEntity>> GetHistoryByOperation(string operation)
+    private void SaveAuditSuccess(
+        string userScope,
+        string type,
+        string operation,
+        string input,
+        string result
+    )
     {
-        var marker = operation.Trim().ToUpperInvariant() + "|";
-        var history = _repository.GetAll()
-            .Where(x => x.Description.StartsWith(marker, StringComparison.OrdinalIgnoreCase));
-
-        return Ok(history);
+        _repository.Save(new QuantityMeasurementEntity(type, operation, input, result, userScope));
     }
 
-    [HttpGet("history/type/{category}")]
-    public ActionResult<IEnumerable<QuantityMeasurementEntity>> GetHistoryByCategory(string category)
+    private void SaveAuditError(
+        string userScope,
+        string type,
+        string operation,
+        string input,
+        string error
+    )
     {
-        var history = _repository.GetAll()
-            .Where(x => x.Description.Contains($"CAT={category}", StringComparison.OrdinalIgnoreCase));
-
-        return Ok(history);
-    }
-
-    [HttpGet("history/errored")]
-    public ActionResult<IEnumerable<QuantityMeasurementEntity>> GetErroredHistory()
-    {
-        return Ok(_repository.GetAll().Where(x => x.IsError));
-    }
-
-    [HttpGet("count/{operation}")]
-    public ActionResult<object> GetCountByOperation(string operation)
-    {
-        var marker = operation.Trim().ToUpperInvariant() + "|";
-        var count = _repository.GetAll()
-            .Count(x => x.Description.StartsWith(marker, StringComparison.OrdinalIgnoreCase) && !x.IsError);
-
-        return Ok(new { operation = operation.ToUpperInvariant(), count });
-    }
-
-    private void SaveAuditSuccess(string description)
-    {
-        _repository.Save(new QuantityMeasurementEntity(description));
-    }
-
-    private void SaveAuditError(string description, string error)
-    {
-        _repository.Save(new QuantityMeasurementEntity(description, error));
-    }
-
-    private async Task PublishAsync(string operation, bool success, string? error, string? category, string? unit)
-    {
-        await _publisher.PublishAsync(new OperationEventDto
-        {
-            Operation = operation,
-            IsSuccess = success,
-            ErrorMessage = error,
-            Category = category,
-            Unit = unit,
-            TimestampUtc = DateTime.UtcNow
-        });
+        _repository.Save(new QuantityMeasurementEntity(type, operation, input, "-", error, userScope));
     }
 
     private static QuantityDTO ToDomain(ApiQuantityDto dto)
@@ -245,13 +300,50 @@ public class QuantityMeasurementsController : ControllerBase
         return new QuantityDTO(dto.Value ?? 0, dto.Unit, dto.Category);
     }
 
-    private static string BuildBinaryDescription(QuantityDTO first, QuantityDTO second)
+    private static string BuildConvertInput(QuantityDTO source, string targetUnit)
     {
-        return $"FIRST={Describe(first)}|SECOND={Describe(second)}";
+        return $"{source.Value} {source.Unit} to {targetUnit}";
     }
 
-    private static string Describe(QuantityDTO dto)
+    private static string BuildCompareInput(QuantityDTO first, QuantityDTO second)
     {
-        return $"VAL={dto.Value},UNIT={dto.Unit},CAT={dto.Category}";
+        return $"{first.Value} {first.Unit} vs {second.Value} {second.Unit}";
     }
+
+    private static string BuildAddInput(QuantityDTO first, QuantityDTO second)
+    {
+        return $"{first.Value} {first.Unit} + {second.Value} {second.Unit}";
+    }
+
+    private static string BuildSubtractInput(QuantityDTO first, QuantityDTO second)
+    {
+        return $"{first.Value} {first.Unit} - {second.Value} {second.Unit}";
+    }
+
+    private static string BuildDivideInput(QuantityDTO first, QuantityDTO second)
+    {
+        return $"{first.Value} {first.Unit} / {second.Value} {second.Unit}";
+    }
+
+    private static string BuildQuantityResult(QuantityDTO dto)
+    {
+        return $"{dto.Value} {dto.Unit}";
+    }
+
+    private string GetCurrentUserScope()
+    {
+        // Support both raw JWT claims and framework-mapped claim types.
+        var subClaim = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+            ?? User.FindFirst("sub")?.Value
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("nameid")?.Value;
+
+        if (!string.IsNullOrWhiteSpace(subClaim))
+        {
+            return subClaim;
+        }
+
+        return "GUEST";
+    }
+
 }
