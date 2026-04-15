@@ -12,6 +12,10 @@ using QuantityMeasurementApp.Repository;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:3000" };
+const string corsPolicyName = "AllowedOriginsPolicy";
+
 builder.Services
     .AddControllers()
     .AddJsonOptions(options =>
@@ -42,6 +46,15 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(corsPolicyName, policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 builder.Services.AddSwaggerGen(options =>
 {
     // Swagger bearer definition allows login token testing directly from UI.
@@ -170,6 +183,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors(corsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
