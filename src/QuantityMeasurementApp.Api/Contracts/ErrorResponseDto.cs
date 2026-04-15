@@ -6,5 +6,7 @@ public class ErrorResponseDto
     public int Status { get; set; }
     public string Error { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
+    public string? UserMessage { get; set; }
     public string? Path { get; set; }
+    public string? Details { get; set; }
 }

@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using QuantityMeasurementApp.Api.Messaging;
 using QuantityMeasurementApp.Api.Middleware;
 using QuantityMeasurementApp.Api.Security;
 using QuantityMeasurementApp.Business;
@@ -85,11 +84,32 @@ builder.Services.AddSwaggerGen(options =>
 });
 builder.Services.AddHealthChecks();
 
-builder.Services.Configure<RabbitMqOptions>(
-    builder.Configuration.GetSection(RabbitMqOptions.SectionName)
-);
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://127.0.0.1:5500",
+                "http://localhost:5500",
+                "http://192.168.1.34:5500",
+                "http://127.0.0.1:3000",
+                "http://localhost:3000",
+                "http://127.0.0.1:3001",
+                "http://localhost:3001",
+                "http://127.0.0.1:5173",
+                "http://localhost:5173"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 builder.Services.Configure<JwtOptions>(
     builder.Configuration.GetSection(JwtOptions.SectionName)
+);
+builder.Services.Configure<GoogleAuthOptions>(
+    builder.Configuration.GetSection(GoogleAuthOptions.SectionName)
 );
 
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
@@ -117,7 +137,6 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddSingleton<IOperationEventPublisher, RabbitMqOperationEventPublisher>();
 builder.Services.AddSingleton<IPasswordHashingService, Pbkdf2PasswordHashingService>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
@@ -183,7 +202,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors(corsPolicyName);
+app.UseCors("FrontendPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

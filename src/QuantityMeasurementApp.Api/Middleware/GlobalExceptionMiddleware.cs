@@ -54,9 +54,22 @@ public class GlobalExceptionMiddleware
             Status = statusCode,
             Error = error,
             Message = message,
-            Path = context.Request.Path
+            UserMessage = BuildUserMessage(statusCode, error, message),
+            Path = context.Request.Path,
+            Details = message
         };
 
         await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+    }
+
+    private static string BuildUserMessage(int statusCode, string error, string message)
+    {
+        return statusCode switch
+        {
+            StatusCodes.Status400BadRequest => $"Request could not be processed: {message}",
+            StatusCodes.Status401Unauthorized => "Authentication failed. Please verify your credentials and try again.",
+            StatusCodes.Status500InternalServerError => "Something went wrong on the server. Please try again shortly.",
+            _ => $"{error}: {message}"
+        };
     }
 }

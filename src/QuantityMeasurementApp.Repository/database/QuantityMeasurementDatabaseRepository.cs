@@ -7,6 +7,7 @@ namespace QuantityMeasurementApp.Repository
 {
     public sealed class QuantityMeasurementDatabaseRepository : IQuantityMeasurementRepository
     {
+        private const string HistoryTableName = "dbo.QuantityMeasurementHistoryEntries";
         private readonly string _connectionString;
 
         public QuantityMeasurementDatabaseRepository(string connectionString)
@@ -29,30 +30,35 @@ namespace QuantityMeasurementApp.Repository
 
             const string sql =
                 @"
-                INSERT INTO dbo.QuantityMeasurementOperations
-                    (Id, Description, IsError, ErrorMessage, CreatedAt)
+                INSERT INTO dbo.QuantityMeasurementHistoryEntries
+                    (UserScope, Type, Operation, Input, Result, IsError, ErrorMessage, CreatedAt)
                 VALUES
-                    (@Id, @Description, @IsError, @ErrorMessage, @CreatedAt);";
+                    (@UserScope, @Type, @Operation, @Input, @Result, @IsError, @ErrorMessage, @CreatedAt);
+                SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
             using var connection = new SqlConnection(_connectionString);
             using var command = new SqlCommand(sql, connection);
 
-            command.Parameters.AddWithValue("@Id", entity.Id);
-            command.Parameters.AddWithValue("@Description", entity.Description);
+            command.Parameters.AddWithValue("@UserScope", entity.UserScope);
+            command.Parameters.AddWithValue("@Type", entity.Type);
+            command.Parameters.AddWithValue("@Operation", entity.Operation);
+            command.Parameters.AddWithValue("@Input", entity.Input);
+            command.Parameters.AddWithValue("@Result", entity.Result);
             command.Parameters.AddWithValue("@IsError", entity.IsError);
             command.Parameters.AddWithValue("@ErrorMessage", entity.ErrorMessage);
             command.Parameters.AddWithValue("@CreatedAt", entity.CreatedAt);
 
             connection.Open();
-            command.ExecuteNonQuery();
+            var generatedId = Convert.ToInt32(command.ExecuteScalar());
+            entity.AssignId(generatedId);
         }
 
         public IEnumerable<QuantityMeasurementEntity> GetAll()
         {
             const string sql =
                 @"
-                SELECT Id, Description, IsError, ErrorMessage, CreatedAt
-                FROM dbo.QuantityMeasurementOperations
+                SELECT Id, UserScope, Type, Operation, Input, Result, IsError, ErrorMessage, CreatedAt
+                FROM dbo.QuantityMeasurementHistoryEntries
                 ORDER BY CreatedAt DESC;";
 
             var entities = new List<QuantityMeasurementEntity>();
@@ -65,15 +71,23 @@ namespace QuantityMeasurementApp.Repository
 
             while (reader.Read())
             {
-                var id = reader.GetGuid(0);
-                var description = reader.GetString(1);
-                var isError = reader.GetBoolean(2);
-                var errorMessage = reader.IsDBNull(3) ? string.Empty : reader.GetString(3);
-                var createdAt = reader.GetDateTime(4);
+                var id = reader.GetInt32(0);
+                var userScope = reader.IsDBNull(1) ? "GUEST" : reader.GetString(1);
+                var type = reader.IsDBNull(2) ? "Unknown" : reader.GetString(2);
+                var operation = reader.IsDBNull(3) ? "Unknown" : reader.GetString(3);
+                var input = reader.IsDBNull(4) ? "-" : reader.GetString(4);
+                var result = reader.IsDBNull(5) ? "-" : reader.GetString(5);
+                var isError = reader.GetBoolean(6);
+                var errorMessage = reader.IsDBNull(7) ? string.Empty : reader.GetString(7);
+                var createdAt = reader.GetDateTime(8);
 
                 var entity = QuantityMeasurementEntity.Rehydrate(
                     id,
-                    description,
+                    userScope,
+                    type,
+                    operation,
+                    input,
+                    result,
                     isError,
                     errorMessage,
                     createdAt
@@ -89,18 +103,24 @@ namespace QuantityMeasurementApp.Repository
         {
             const string sql =
                 @"
-                IF OBJECT_ID('dbo.QuantityMeasurementOperations', 'U') IS NULL
+                IF OBJECT_ID('dbo.QuantityMeasurementHistoryEntries', 'U') IS NULL
                 BEGIN
-                    CREATE TABLE dbo.QuantityMeasurementOperations
+                    CREATE TABLE dbo.QuantityMeasurementHistoryEntries
                     (
-                        Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-                        Description NVARCHAR(1000) NOT NULL,
+                        Id INT IDENTITY(1001,1) NOT NULL PRIMARY KEY,
+                        UserScope NVARCHAR(128) NOT NULL,
+                        Type NVARCHAR(64) NOT NULL,
+                        Operation NVARCHAR(64) NOT NULL,
+                        Input NVARCHAR(512) NOT NULL,
+                        Result NVARCHAR(512) NOT NULL,
                         IsError BIT NOT NULL,
                         ErrorMessage NVARCHAR(1000) NOT NULL,
                         CreatedAt DATETIME2 NOT NULL
                     );
-                    CREATE INDEX IX_QuantityMeasurementOperations_CreatedAt
-                        ON dbo.QuantityMeasurementOperations(CreatedAt DESC);
+                    CREATE INDEX IX_QuantityMeasurementHistoryEntries_CreatedAt
+                        ON dbo.QuantityMeasurementHistoryEntries(CreatedAt DESC);
+                    CREATE INDEX IX_QuantityMeasurementHistoryEntries_UserScope
+                        ON dbo.QuantityMeasurementHistoryEntries(UserScope);
                 END;";
 
             using var connection = new SqlConnection(_connectionString);
