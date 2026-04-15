@@ -9,6 +9,29 @@ using QuantityMeasurementApp.Repository;
 
 namespace QuantityMeasurementApp.UI
 {
+    /// <summary>
+    /// ConsoleMenu - User Interface Layer
+    /// 
+    /// What it does:
+    /// - Presents interactive console-based menu to users
+    /// - Guides users through measurement operations (compare, convert, add, subtract, divide)
+    /// - Handles user input validation and error handling
+    /// - Displays available units, operation history, and results
+    /// 
+    /// How it works:
+    /// 1. Shows main menu with measurement categories (Length, Weight, Volume, Temperature)
+    /// 2. User selects category
+    /// 3. Shows category-specific operations menu
+    /// 4. Prompts user for quantities and units
+    /// 5. Calls controller to perform operation
+    /// 6. Displays result to user
+    /// 
+    /// Separation of Concerns:
+    /// - UI layer: This ConsoleMenu class (presentation logic)
+    /// - Controller layer: QuantityMeasurementController (orchestration)
+    /// - Service layer: IQuantityMeasurementService (business logic)
+    /// - Repository layer: IQuantityMeasurementRepository (data persistence)
+    /// </summary>
     public class ConsoleMenu : IConsoleMenu
     {
         private readonly IQuantityMeasurementService _service;
@@ -23,6 +46,19 @@ namespace QuantityMeasurementApp.UI
             _repository = repository;
         }
 
+        /// <summary>
+        /// Displays main menu and handles user interactions in infinite loop
+        /// 
+        /// User flow:
+        /// 1. Shows available measurement categories
+        /// 2. Processes user choice
+        /// 3. Routes to category menu or utility functions
+        /// 4. Continues until user selects "Exit" (0)
+        /// 
+        /// Default Behavior:
+        /// - Shows menu infinitely until explicit exit command
+        /// - Displays friendly "Invalid option" message for bad input
+        /// </summary>
         public void Run()
         {
             var controller = new QuantityMeasurementController(_service, _repository);
@@ -70,6 +106,23 @@ namespace QuantityMeasurementApp.UI
             }
         }
 
+        /// <summary>
+        /// Displays operation menu for selected measurement category
+        /// 
+        /// Parameters:
+        /// - controller: Controller instance to execute operations
+        /// - category: Selected measurement category (Length, Weight, Volume, Temperature)
+        /// 
+        /// How it works:
+        /// 1. Shows category-appropriate operations menu
+        /// 2. Temperature has limited operations (no addition/subtraction)
+        /// 3. Other categories support all operations
+        /// 4. User selects operation or returns to main menu
+        /// 
+        /// Conditional Menus:
+        /// - Temperature: Compare, Convert, Show units (4 operations)
+        /// - Other categories: Compare, Convert, Add, Subtract, Divide, Show units (6 operations)
+        /// </summary>
         private static void RunCategoryMenu(
             QuantityMeasurementController controller,
             MeasurementCategory category
@@ -113,6 +166,26 @@ namespace QuantityMeasurementApp.UI
             }
         }
 
+        /// <summary>
+        /// Routes operation request to appropriate controller method
+        /// 
+        /// Parameters:
+        /// - controller: Controller instance
+        /// - category: Selected measurement category
+        /// - operation: User's operation choice (as string "1"-"6")
+        /// 
+        /// Operations:
+        /// - "1": Compare two quantities
+        /// - "2": Convert quantity to different unit
+        /// - "3": Add quantities (arithmetic-supporting categories) or Show units (Temperature)
+        /// - "4": Subtract quantities (arithmetic-supporting categories only)
+        /// - "5": Divide quantities (arithmetic-supporting categories only)
+        /// - "6": Show units (arithmetic-supporting categories only)
+        /// 
+        /// Error Handling:
+        /// - Displays "Invalid operation option" for unrecognized choice
+        /// - Caller handles exceptions and displays error messages
+        /// </summary>
         private static void HandleOperation(
             QuantityMeasurementController controller,
             MeasurementCategory category,
@@ -182,6 +255,21 @@ namespace QuantityMeasurementApp.UI
             Console.WriteLine("Invalid operation option.");
         }
 
+        /// <summary>
+        /// Prompts user to enter a quantity (value and unit)
+        /// 
+        /// Parameters:
+        /// - category: Measurement category for context
+        /// - label: Display label for the quantity (e.g., "first", "second", "source")
+        /// 
+        /// Returns:
+        /// - QuantityDTO with user-entered value, unit, and category
+        /// 
+        /// User Flow:
+        /// 1. Prompts for numeric value
+        /// 2. Prompts for unit selection (shows available units)
+        /// 3. Returns complete QuantityDTO
+        /// </summary>
         private static QuantityDTO PromptQuantity(MeasurementCategory category, string label)
         {
             var value = PromptDouble($"Enter {label} value: ");
@@ -189,6 +277,20 @@ namespace QuantityMeasurementApp.UI
             return new QuantityDTO(value, unit, category);
         }
 
+        /// <summary>
+        /// Prompts user to enter a numeric value with validation
+        /// 
+        /// Parameters:
+        /// - prompt: Display prompt message
+        /// 
+        /// Returns:
+        /// - Valid double value entered by user
+        /// 
+        /// Validation:
+        /// - Loops until valid numeric input received
+        /// - Shows "Invalid number" message for non-numeric input
+        /// - Accepts integers and decimal numbers
+        /// </summary>
         private static double PromptDouble(string prompt)
         {
             while (true)
@@ -202,6 +304,22 @@ namespace QuantityMeasurementApp.UI
             }
         }
 
+        /// <summary>
+        /// Prompts user to select a unit from available options for category
+        /// 
+        /// Parameters:
+        /// - category: Measurement category
+        /// - prompt: Display message
+        /// 
+        /// Returns:
+        /// - Valid unit name (case-insensitive match)
+        /// 
+        /// Features:
+        /// - Shows all available units for category
+        /// - Case-insensitive comparison (accepts "meter", "METER", "Meter")
+        /// - Loops until valid unit entered
+        /// - Uses dictionary lookup for efficient matching
+        /// </summary>
         private static string PromptUnit(MeasurementCategory category, string prompt)
         {
             var units = GetUnits(category);
@@ -224,6 +342,16 @@ namespace QuantityMeasurementApp.UI
             }
         }
 
+        /// <summary>
+        /// Optional prompt for target unit in arithmetic operations
+        /// 
+        /// Returns:
+        /// - Target unit name if user selects 'y', null if selects 'n' or leaves blank
+        /// 
+        /// Default Behavior:
+        /// - Returns null (first quantity's unit will be used for result)
+        /// - Only called for arithmetic operations (Add, Subtract)
+        /// </summary>
         private static string? PromptOptionalTargetUnit(MeasurementCategory category)
         {
             Console.Write("Use specific target unit for result? (y/N): ");
@@ -234,11 +362,39 @@ namespace QuantityMeasurementApp.UI
             return PromptUnit(category, "Enter target unit for result");
         }
 
+        /// <summary>
+        /// Determines if category supports arithmetic operations
+        /// 
+        /// Parameters:
+        /// - category: Measurement category
+        /// 
+        /// Returns:
+        /// - true for Length, Weight, Volume (support all operations)
+        /// - false for Temperature (only supports compare/convert)
+        /// 
+        /// Why Temperature is different:
+        /// - Absolute temperature addition is not meaningful (40°C + 10°C ≠ 50°C)
+        /// - Temperature differences can be subtracted (not supported yet, but could be)
+        /// - This restriction enforces domain rules
+        /// </summary>
         private static bool SupportsArithmetic(MeasurementCategory category)
         {
             return category != MeasurementCategory.Temperature;
         }
 
+        /// <summary>
+        /// Gets list of all unit names for specified category
+        /// 
+        /// Parameters:
+        /// - category: Measurement category
+        /// 
+        /// Returns:
+        /// - Readonly list of unit enum names (e.g., ["METER", "CENTIMETER", "KILOMETER"])
+        /// 
+        /// Implementation:
+        /// - Uses reflection to get enum names
+        /// - Returns empty array for unknown categories
+        /// </summary>
         private static IReadOnlyList<string> GetUnits(MeasurementCategory category)
         {
             return category switch
@@ -251,6 +407,13 @@ namespace QuantityMeasurementApp.UI
             };
         }
 
+        /// <summary>
+        /// Prints all supported units for specified category
+        /// 
+        /// Used for:
+        /// - Operation menu option "Show supported units for this category"
+        /// - Displays units in comma-separated list format
+        /// </summary>
         private static void PrintUnitsForCategory(MeasurementCategory category)
         {
             Console.WriteLine();
@@ -259,6 +422,13 @@ namespace QuantityMeasurementApp.UI
             );
         }
 
+        /// <summary>
+        /// Prints all available units across all measurement categories
+        /// 
+        /// Used for:
+        /// - Main menu option "Show all supported units"
+        /// - Shows complete reference of system capabilities
+        /// </summary>
         private static void PrintAvailableUnits()
         {
             Console.WriteLine();
@@ -271,6 +441,22 @@ namespace QuantityMeasurementApp.UI
             );
         }
 
+        /// <summary>
+        /// Displays operation history persisted in repository
+        /// 
+        /// Used for:
+        /// - Main menu option "Show persisted history"
+        /// - Shows all past operations (successful and failed)
+        /// 
+        /// Display Format:
+        /// - [DateTime] STATUS | Description | Error message (if any)
+        /// - STATUS: "OK" for successful operations, "ERROR" for failed operations
+        /// 
+        /// Why Useful:
+        /// - Audit trail for debugging
+        /// - User can verify past results
+        /// - Error tracking for support/troubleshooting
+        /// </summary>
         private void PrintHistory()
         {
             Console.WriteLine();

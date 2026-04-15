@@ -117,4 +117,58 @@ public class AuthController : ControllerBase
         response.Message = $"Google sign-in successful. Welcome, {user.FullName}.";
         return Ok(response);
     }
+
+    [HttpPost("google")]
+    public async Task<ActionResult<AuthResponseDto>> GoogleLogin([FromBody] GoogleAuthRequestDto request)
+    {
+        var clientId = _configuration["Google:ClientId"]?.Trim();
+        if (string.IsNullOrWhiteSpace(clientId))
+        {
+            throw new InvalidOperationException("Google sign-in is not configured on the server.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.IdToken))
+        {
+            throw new ArgumentException("Google ID token is required.");
+        }
+
+        var validationSettings = new GoogleJsonWebSignature.ValidationSettings
+        {
+            Audience = new[] { clientId }
+        };
+
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken.Trim(), validationSettings);
+        }
+        catch (InvalidJwtException)
+        {
+            throw new UnauthorizedAccessException("Invalid Google sign-in token.");
+        }
+
+        if (string.IsNullOrWhiteSpace(payload.Email))
+        {
+            throw new UnauthorizedAccessException("Google account does not contain a valid email address.");
+        }
+
+        if (!payload.EmailVerified)
+        {
+            throw new UnauthorizedAccessException("Google email address is not verified.");
+        }
+
+        var email = payload.Email.Trim().ToLowerInvariant();
+        var fullName = string.IsNullOrWhiteSpace(payload.Name) ? email.Split('@')[0] : payload.Name.Trim();
+
+        var user = _userRepository.GetByEmail(email);
+        if (user == null)
+        {
+            var passwordHash = _passwordHashing.HashPassword(Guid.NewGuid().ToString("N"));
+            user = new UserAccountEntity(fullName, email, passwordHash);
+            _userRepository.Create(user);
+        }
+
+        var response = _jwtTokenService.GenerateToken(user);
+        return Ok(response);
+    }
 }
