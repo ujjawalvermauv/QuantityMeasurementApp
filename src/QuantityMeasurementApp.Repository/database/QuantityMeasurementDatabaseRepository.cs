@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Microsoft.Data.SqlClient;
 using QuantityMeasurementApp.Models.Entities;
 
@@ -8,6 +9,8 @@ namespace QuantityMeasurementApp.Repository
     public sealed class QuantityMeasurementDatabaseRepository : IQuantityMeasurementRepository
     {
         private const string HistoryTableName = "dbo.QuantityMeasurementHistoryEntries";
+        private const int CommandTimeoutSeconds = 30;
+        private const int MaxRetryAttempts = 3;
         private readonly string _connectionString;
 
         public QuantityMeasurementDatabaseRepository(string connectionString)
@@ -38,6 +41,7 @@ namespace QuantityMeasurementApp.Repository
 
             using var connection = new SqlConnection(_connectionString);
             using var command = new SqlCommand(sql, connection);
+            command.CommandTimeout = CommandTimeoutSeconds;
 
             command.Parameters.AddWithValue("@UserScope", entity.UserScope);
             command.Parameters.AddWithValue("@Type", entity.Type);
@@ -48,8 +52,8 @@ namespace QuantityMeasurementApp.Repository
             command.Parameters.AddWithValue("@ErrorMessage", entity.ErrorMessage);
             command.Parameters.AddWithValue("@CreatedAt", entity.CreatedAt);
 
-            connection.Open();
-            var generatedId = Convert.ToInt32(command.ExecuteScalar());
+            OpenWithRetry(connection);
+            var generatedId = Convert.ToInt32(ExecuteScalarWithRetry(command));
             entity.AssignId(generatedId);
         }
 
@@ -65,8 +69,9 @@ namespace QuantityMeasurementApp.Repository
 
             using var connection = new SqlConnection(_connectionString);
             using var command = new SqlCommand(sql, connection);
+            command.CommandTimeout = CommandTimeoutSeconds;
 
-            connection.Open();
+            OpenWithRetry(connection);
             using var reader = command.ExecuteReader();
 
             while (reader.Read())
@@ -125,9 +130,62 @@ namespace QuantityMeasurementApp.Repository
 
             using var connection = new SqlConnection(_connectionString);
             using var command = new SqlCommand(sql, connection);
+            command.CommandTimeout = CommandTimeoutSeconds;
 
-            connection.Open();
-            command.ExecuteNonQuery();
+            OpenWithRetry(connection);
+            ExecuteNonQueryWithRetry(command);
+        }
+
+        private static bool IsTransient(SqlException exception)
+        {
+            return exception.Number is -2 or 40613 or 40197 or 40501 or 10928 or 10929;
+        }
+
+        private static void OpenWithRetry(SqlConnection connection)
+        {
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    connection.Open();
+                    return;
+                }
+                catch (SqlException ex) when (IsTransient(ex) && attempt < MaxRetryAttempts)
+                {
+                    Thread.Sleep(300 * attempt);
+                }
+            }
+        }
+
+        private static object? ExecuteScalarWithRetry(SqlCommand command)
+        {
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    return command.ExecuteScalar();
+                }
+                catch (SqlException ex) when (IsTransient(ex) && attempt < MaxRetryAttempts)
+                {
+                    Thread.Sleep(300 * attempt);
+                }
+            }
+        }
+
+        private static void ExecuteNonQueryWithRetry(SqlCommand command)
+        {
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    command.ExecuteNonQuery();
+                    return;
+                }
+                catch (SqlException ex) when (IsTransient(ex) && attempt < MaxRetryAttempts)
+                {
+                    Thread.Sleep(300 * attempt);
+                }
+            }
         }
     }
 }

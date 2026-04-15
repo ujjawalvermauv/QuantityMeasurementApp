@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Data.SqlClient;
 using QuantityMeasurementApp.Api.Contracts;
 using QuantityMeasurementApp.Business.Exceptions;
 
@@ -36,6 +37,16 @@ public class GlobalExceptionMiddleware
             _logger.LogWarning(ex, "Unauthorized access attempt.");
             await WriteErrorAsync(context, StatusCodes.Status401Unauthorized, "Unauthorized", ex.Message);
         }
+        catch (SqlException ex)
+        {
+            _logger.LogError(ex, "Database exception in quantity API.");
+            await WriteErrorAsync(
+                context,
+                StatusCodes.Status503ServiceUnavailable,
+                "Database Unavailable",
+                "Database is temporarily unavailable. Please try again shortly."
+            );
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception in quantity API.");
@@ -68,6 +79,7 @@ public class GlobalExceptionMiddleware
         {
             StatusCodes.Status400BadRequest => $"Request could not be processed: {message}",
             StatusCodes.Status401Unauthorized => "Authentication failed. Please verify your credentials and try again.",
+            StatusCodes.Status503ServiceUnavailable => "Service is temporarily unavailable. Please retry in a few moments.",
             StatusCodes.Status500InternalServerError => "Something went wrong on the server. Please try again shortly.",
             _ => $"{error}: {message}"
         };
