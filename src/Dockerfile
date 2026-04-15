@@ -12,8 +12,8 @@ RUN dotnet restore QuantityMeasurementApp.Api/QuantityMeasurementApp.Api.csproj
 
 # Copy source and publish
 COPY . .
-WORKDIR /src/QuantityMeasurementApp.Api
-RUN dotnet publish QuantityMeasurementApp.Api.csproj -c Release -o /app/publish /p:UseAppHost=false
+WORKDIR "/src/QuantityMeasurementApp.Api"
+RUN dotnet publish "QuantityMeasurementApp.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
