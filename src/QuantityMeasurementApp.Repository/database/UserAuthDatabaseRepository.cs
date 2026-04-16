@@ -10,6 +10,8 @@ namespace QuantityMeasurementApp.Repository
         private const int CommandTimeoutSeconds = 30;
         private const int MaxRetryAttempts = 3;
         private readonly string _connectionString;
+        private readonly object _schemaLock = new();
+        private bool _schemaEnsured;
 
         public UserAuthDatabaseRepository(string connectionString)
         {
@@ -19,11 +21,12 @@ namespace QuantityMeasurementApp.Repository
             }
 
             _connectionString = connectionString;
-            EnsureSchema();
         }
 
         public UserAccountEntity? GetByEmail(string email)
         {
+            EnsureSchemaInitialized();
+
             const string sql = @"
                 SELECT TOP 1 Id, FullName, Email, PasswordHash, CreatedAtUtc
                 FROM dbo.Users
@@ -55,6 +58,8 @@ namespace QuantityMeasurementApp.Repository
         {
             ArgumentNullException.ThrowIfNull(user);
 
+            EnsureSchemaInitialized();
+
             const string sql = @"
                 INSERT INTO dbo.Users (Id, FullName, Email, PasswordHash, CreatedAtUtc)
                 VALUES (@Id, @FullName, @Email, @PasswordHash, @CreatedAtUtc);";
@@ -73,6 +78,25 @@ namespace QuantityMeasurementApp.Repository
             ExecuteNonQueryWithRetry(command);
 
             return user;
+        }
+
+        private void EnsureSchemaInitialized()
+        {
+            if (_schemaEnsured)
+            {
+                return;
+            }
+
+            lock (_schemaLock)
+            {
+                if (_schemaEnsured)
+                {
+                    return;
+                }
+
+                EnsureSchema();
+                _schemaEnsured = true;
+            }
         }
 
         private void EnsureSchema()

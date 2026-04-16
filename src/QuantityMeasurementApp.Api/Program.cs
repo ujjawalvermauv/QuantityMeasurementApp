@@ -171,25 +171,34 @@ builder.Services.AddSingleton<IQuantityMeasurementRepository>(serviceProvider =>
 builder.Services.AddSingleton<IUserAuthRepository>(serviceProvider =>
 {
     var logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("UserRepositoryBootstrap");
+    var fallbackRepository = UserAuthCacheRepository.Instance;
     var connectionString =
         builder.Configuration.GetConnectionString("QuantityMeasurementDb")
         ?? builder.Configuration["Database:ConnectionString"];
 
     if (string.IsNullOrWhiteSpace(connectionString))
     {
-        throw new InvalidOperationException("User authentication requires a SQL connection string.");
+        logger.LogWarning("No SQL connection string provided for auth. Falling back to in-memory auth repository.");
+        return fallbackRepository;
     }
 
+    IUserAuthRepository primaryRepository;
     try
     {
         // Repository creates Users table automatically when missing.
-        return new UserAuthDatabaseRepository(connectionString);
+        primaryRepository = new UserAuthDatabaseRepository(connectionString);
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Could not initialize user repository.");
-        throw;
+        logger.LogWarning(ex, "Could not initialize SQL user repository. Falling back to in-memory auth repository.");
+        return fallbackRepository;
     }
+
+    return new UserAuthResilientRepository(
+        primaryRepository,
+        fallbackRepository,
+        serviceProvider.GetRequiredService<ILogger<UserAuthResilientRepository>>()
+    );
 });
 
 var app = builder.Build();
