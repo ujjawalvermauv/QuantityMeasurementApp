@@ -117,4 +117,19 @@ public class AuthController : ControllerBase
         response.Message = $"Google sign-in successful. Welcome, {user.FullName}.";
         return Ok(response);
     }
+
+    [HttpGet("google")]
+    public IActionResult GoogleLoginAvailability()
+    {
+        if (string.IsNullOrWhiteSpace(_googleAuthOptions.ClientId) ||
+            _googleAuthOptions.ClientId == "YOUR_GOOGLE_CLIENT_ID")
+        {
+            return NotFound(new
+            {
+                message = "Google sign-in is not configured on the API."
+            });
+        }
+
+        return NoContent();
+    }
 }

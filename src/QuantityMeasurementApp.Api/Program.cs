@@ -12,7 +12,7 @@ using QuantityMeasurementApp.Repository;
 var builder = WebApplication.CreateBuilder(args);
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? new[] { "http://localhost:3000" , "https://quantity-measurementapp-frontend.onrender.com" };
+    ?? new[] { "http://localhost:3000" , "https://quantity-measurement-app-frontend.onrender.com" };
 const string corsPolicyName = "AllowedOriginsPolicy";
 
 builder.Services
