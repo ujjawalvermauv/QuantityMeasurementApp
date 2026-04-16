@@ -90,7 +90,7 @@ builder.Services.AddCors(options =>
     {
         policy
             .WithOrigins(
-                "https://quantity-measurementapp-frontend.onrender.com",
+                "https://quantity-measurement-app-frontend.onrender.com",
                 "http://127.0.0.1:5500",
                 "http://localhost:5500",
                 "http://192.168.1.34:5500",
